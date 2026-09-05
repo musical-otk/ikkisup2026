@@ -92,6 +92,25 @@ t('U. 좌석', '좌석 합계 = 백암아트홀 417석', () => {
   eq(sum('2층'), 108, '2층');
   eq(sum('1층') + 5 + sum('2층'), 417, '휠체어석 5 포함 총계');
 });
+t('U. 좌석', '정렬 기준(FLOOR_ZONES)이 모든 열을 담을 수 있음', () => {
+  const Z = g('FLOOR_ZONES');
+  const span = z => z ? (z[1] - z[0] + 1) : 0;
+  Object.keys(Z).forEach(f => {
+    g('SEAT_PLAN')[f].rows.forEach(r => {
+      const d = g('SEAT_PLAN')[f].def[r];
+      ok(span(d.l) <= Z[f].l, `${f} ${r}열 좌구역 ${span(d.l)} > 기준 ${Z[f].l}`);
+      ok(span(d.m) <= Z[f].m, `${f} ${r}열 중구역 ${span(d.m)} > 기준 ${Z[f].m}`);
+      ok(span(d.r) <= Z[f].r, `${f} ${r}열 우구역 ${span(d.r)} > 기준 ${Z[f].r}`);
+    });
+  });
+});
+t('U. 좌석', '1·2층 좌석도 가운데 정렬', () => {
+  const C = 11, G = 1, ZG = 11;
+  const w1 = W.floorWidth('1층', C, G, ZG), w2 = W.floorWidth('2층', C, G, ZG);
+  ok(w1 > w2, '1층이 더 넓어야 함');
+  eq(W.floorLeadPx('1층', C, G, ZG), 0, '넓은 층은 여백 0');
+  eq(W.floorLeadPx('2층', C, G, ZG), Math.round((w1 - w2) / 2), '좁은 층은 절반만큼 들여쓰기');
+});
 t('U. 좌석', '비판매석 14석', () => {
   const n = Object.values(g('SEAT_UNAVAILABLE')['1층']).reduce((s, a) => s + a.length, 0);
   eq(n, 14);

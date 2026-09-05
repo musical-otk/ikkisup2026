@@ -78,6 +78,17 @@ frame.addEventListener('load', () => {
     if (!ready && Date.now() - start < 6000) return setTimeout(wait, 150);
 
     seed(W);
+
+    // 상세 패널 (미니 좌석도 확인용)
+    if (TAB === 'detail') {
+      const home = W.document.querySelector(`.tab-btn[onclick*="'home'"]`);
+      if (home) W.switchTab('home', home);
+      const target = W.getRecords().find(r => r.seatFloor === '2층') || W.getRecords()[0];
+      W.openDetail(target.id);
+      document.title = 'SHOT detail';
+      return;
+    }
+
     const btn = W.document.querySelector(`.tab-btn[onclick*="'${TAB}'"]`);
     if (btn) W.switchTab(TAB, btn);
 

@@ -1336,6 +1336,24 @@ const SEAT_UNAVAILABLE = {
   '2층': {}
 };
 
+// 좌석도 정렬 기준 — 히트맵과 상세 미니 좌석도가 같은 값을 쓰도록 한 곳에 둔다.
+// 1층은 13번 뒤 통로 하나(중앙 구역 없음), 2층은 6·16번 뒤 통로 둘.
+const FLOOR_ZONES = {
+  '1층': { l: 13, m: 0,  r: 13 },
+  '2층': { l: 6,  m: 10, r: 6  }
+};
+// 좌석 영역의 총 너비(px). C=셀 너비, G=셀 간격, ZG=구역 간격
+function floorWidth(floor, C, G, ZG) {
+  const z = FLOOR_ZONES[floor];
+  if (!z) return 0;
+  return (z.l + z.m + z.r) * (C + G) + (z.m > 0 ? 2 : 1) * ZG;
+}
+// 층마다 폭이 달라 왼쪽 정렬하면 어긋난다 → 좁은 층에 앞 여백을 줘 가운데를 맞춘다
+function floorLeadPx(floor, C, G, ZG) {
+  const widths = Object.keys(FLOOR_ZONES).map(f => floorWidth(f, C, G, ZG));
+  return Math.round((Math.max(...widths) - floorWidth(floor, C, G, ZG)) / 2);
+}
+
 // 열에서 최대 번호
 function rowMaxNum(floor, rowKey) {
   const d = SEAT_PLAN[floor]?.def[rowKey];
@@ -2068,10 +2086,10 @@ function buildMiniSeat(floor, rowKey, num) {
   if (!floor || !rowKey) return '';
   const plan = SEAT_PLAN[floor];
   if (!plan) return '';
-  // 히트맵과 동일한 정렬 상수
+  // 히트맵과 같은 FLOOR_ZONES 를 쓴다 (따로 두면 두 좌석도가 어긋난다)
   const C = 9, G = 1, ZG = 11;
-  const MAX = floor === '1층' ? { l:4, m:12, r:4 } : { l:5, m:9, r:4 };
-  const stdW = MAX.l*(C+G) + ZG + MAX.m*(C+G) + ZG + MAX.r*(C+G);
+  const MAX  = FLOOR_ZONES[floor];
+  const lead = floorLeadPx(floor, C, G, ZG);
   const seatNum = parseInt(num);
 
   function mkCell(row, n, invis) {
@@ -2104,28 +2122,16 @@ function buildMiniSeat(floor, rowKey, num) {
     const isTarget = r === rowKey;
     const lbl = `<div style="width:14px;font-size:8px;color:${isTarget?'var(--accent)':'var(--text3)'};text-align:center;font-weight:${isTarget?'700':'400'};flex-shrink:0;margin-right:${G}px;">${r}</div>`;
     html += `<div style="display:flex;align-items:center;gap:0;">${lbl}`;
+    if (lead > 0) html += `<div style="width:${lead}px;flex-shrink:0;"></div>`;
 
-    if (cfg.merged) {
-      html += mkCell(r, null, true); // 2층 C-F와 정렬 (1칸 offset)
-      for (let n=cfg.merged[0]; n<=cfg.merged[1]; n++) html += mkCell(r, n, false);
-      const occupiedW = (C+G) + (cfg.merged[1]-cfg.merged[0]+1)*(C+G);
-      const padPx = stdW - occupiedW;
-      if (padPx>0) html += `<div style="width:${padPx}px;flex-shrink:0;"></div>`;
-    } else if (r === 'N' && floor === '1층') {
-      // Ngap = ZG: N9가 M9 바로 아래 정렬
-      for (let n=1;n<=8;n++) html += mkCell(r, n, false);
-      html += `<div style="width:${ZG}px;flex-shrink:0;"></div>`;
-      for (let n=9;n<=19;n++) html += mkCell(r, n, false);
-      // 오른쪽 빈 공간 (~2칸) 패딩
-      const Npad = stdW - 8*(C+G) - ZG - 11*(C+G);
-      if (Npad > 0) html += `<div style="width:${Npad}px;flex-shrink:0;"></div>`;
-    } else {
-      html += mkZone(r, cfg.l, MAX.l, true);
-      html += `<div style="width:${ZG}px;flex-shrink:0;"></div>`;
+    // 좌 구역은 오른쪽 끝 정렬(13/6번에서 끝남), 우 구역은 왼쪽 끝 정렬(14/17번에서 시작)
+    html += mkZone(r, cfg.l, MAX.l, true);
+    html += `<div style="width:${ZG}px;flex-shrink:0;"></div>`;
+    if (MAX.m > 0) {
       html += mkZone(r, cfg.m, MAX.m, false);
       html += `<div style="width:${ZG}px;flex-shrink:0;"></div>`;
-      html += mkZone(r, cfg.r, MAX.r, true);
     }
+    html += mkZone(r, cfg.r, MAX.r, false);
     html += '</div>';
   });
   return html + '</div></div>';
@@ -2958,8 +2964,8 @@ function renderHeatmap() {
   function renderFloor(floor) {
     const plan = SEAT_PLAN[floor];
     if (!plan) return '';
-    // 1층은 13번 뒤 통로 하나(중앙 구역 없음), 2층은 6·16번 뒤 통로 둘
-    const MAX = floor === '1층' ? { l:13, m:0, r:13 } : { l:6, m:10, r:6 };
+    const MAX = FLOOR_ZONES[floor];
+    const lead = floorLeadPx(floor, C, G, ZG);   // 1·2층 가운데 정렬
     const blocked = SEAT_UNAVAILABLE[floor] || {};
 
     // invis=true: 해당 위치에 좌석 없음 — 빈 슬롯으로 표시 (흐린 테두리)
@@ -2994,7 +3000,7 @@ function renderHeatmap() {
     plan.rows.forEach(rowKey => {
       const cfg = plan.def[rowKey];
       if (!cfg) return;
-      html += `<div class="hm-row"><div class="hm-label">${rowKey}</div><div style="width:4px;flex-shrink:0;"></div>`;
+      html += `<div class="hm-row"><div class="hm-label">${rowKey}</div><div style="width:${4 + lead}px;flex-shrink:0;"></div>`;
       // 좌 구역: 모든 열이 13번(2층은 6번)에서 끝나므로 오른쪽 끝 정렬 (···●)
       html += mkZone(rowKey, cfg.l, MAX.l, true);
       html += `<div style="width:${ZG}px;flex-shrink:0;"></div>`;
