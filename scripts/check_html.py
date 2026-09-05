@@ -21,7 +21,7 @@ RESIDUE = re.compile(
     r"|매그너스|프레드릭|하겐|재스퍼"
     r"|아이드 ?도서카드"
     r"|MYSTIC__CULTURE|미스틱"
-    r"|#9B7B5A|#7A5E40|#C09870|#D0A880|#A88560|#A08878"
+    r"|#9B7B5A|#7A5E40|#C09870|#D0A880|#A88560|#A08878|#8B6B28|#2A1E14|#3E2C1C"
     r"|최석진|한상훈|황순종|박정원|강병훈|김도현|김방언|김준식"
     r"|조모세|김지웅|황건우|김태환|최기정|김도민|김보현|이형훈|고철순"
 )
@@ -104,8 +104,23 @@ def main() -> int:
         if not any(a in u for a in ALLOWED)
     )
 
+    # ── 5. 테마 색상 정합성 ───────────────────────────────
+    # index.html 의 theme-color 메타가 브라우저 주소창 색을 결정한다.
+    # manifest.json 만 고치고 이걸 놓치면 앱 색과 브라우저 UI 색이 어긋난다.
+    import json as _json
+    meta = re.search(r'<meta name="theme-color" content="([^"]+)"', text)
+    manifest = _json.loads((ROOT / "manifest.json").read_text(encoding="utf-8"))
+    meta_color = meta.group(1) if meta else None
+    if not meta_color:
+        errors.append("index.html 에 theme-color 메타가 없음")
+    elif meta_color.lower() != manifest.get("theme_color", "").lower():
+        errors.append(
+            f"theme-color 불일치: index.html {meta_color} != "
+            f"manifest.json {manifest.get('theme_color')}")
+
     # ── 결과 ─────────────────────────────────────────────
     print(f"정의된 id {len(defined)}개 / JS 참조 {len(referenced)}개")
+    print(f"테마 색상: {meta_color} (manifest 와 일치)")
     print(f"ROLES 키: {keys}")
     print(f"외부 링크 {len(urls)}개 (미확인 {len(unknown)}개)")
     for u in unknown:
