@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>SHOTS</title>
+<style>
+  html,body{margin:0;padding:0;background:#fff;}
+  iframe{width:430px;height:932px;border:0;display:block;}
+</style>
+</head>
+<body>
+<iframe id="app" src="./index.html"></iframe>
+<script>
+/*
+  guide.html 용 스크린샷 촬영 하네스 (개발 도구, 배포 대상 아님).
+    _shots.html?tab=home | calendar | coupon | stats
+  index.html 을 iframe 으로 띄우고 샘플 기록을 심은 뒤 해당 탭으로 전환한다.
+  headless Chrome --screenshot 으로 캡처한다.
+*/
+const TAB = new URLSearchParams(location.search).get('tab') || 'home';
+
+// 실제 schedule.json 의 캐스팅과 일치시킨 샘플 관람 기록
+const SAMPLE = [
+  { date:'2026-10-01', time:'20:00', marco:'홍승안', soma:'강혜인', yuo:'정욱진', uiju:'정다예', eunhui:'김청아',
+    seatFloor:'1층', seatZone:'F', seatNumber:12, price:38500, discountType:'프리뷰 할인', rating:5,
+    comment:'첫공. 지하도시 세트가 압도적이었다.' },
+  { date:'2026-10-03', time:'15:00', marco:'송유택', soma:'강연정', yuo:'이주순', uiju:'오유민', eunhui:'윤지우',
+    seatFloor:'1층', seatZone:'C', seatNumber:8, price:77000, discountType:'정가', rating:5,
+    comment:'소마 넘버에서 울었음' },
+  { date:'2026-10-05', time:'15:00', marco:'송유택', soma:'전혜주', yuo:'이주순', uiju:'오유민', eunhui:'윤지우',
+    seatFloor:'2층', seatZone:'O', seatNumber:10, price:66000, discountType:'정가', rating:4,
+    comment:'2층도 시야 괜찮다' },
+  { date:'2026-10-09', time:'19:00', marco:'현석준', soma:'강연정', yuo:'이주순', uiju:'이혜진', eunhui:'윤지우',
+    seatFloor:'1층', seatZone:'J', seatNumber:20, price:53900, discountType:'재관람 할인', rating:5,
+    comment:'현석준 마르코 처음' },
+  { date:'2026-10-11', time:'14:00', marco:'송유택', soma:'강연정', yuo:'이주순', uiju:'오유민', eunhui:'한비',
+    seatFloor:'1층', seatZone:'D', seatNumber:5, price:46200, discountType:'40% 실물 할인권', rating:5,
+    comment:'웰컴키트 40% 사용' }
+];
+
+function seed(W) {
+  // 기존 데이터 정리
+  Object.keys(W.localStorage)
+    .filter(k => k.startsWith('ikkisup_') && !['ikkisup_schedule','ikkisup_events'].includes(k))
+    .forEach(k => W.localStorage.removeItem(k));
+
+  // 도장판 하나 만들고 앱 로직으로 도장을 찍어 카운트·마일스톤 정합성을 맞춘다
+  const board = { id: W.uuid(), name: '1', totalSlots: 8,
+                  milestones: W.defaultMilestones(), currentCount: 0, history: [] };
+  W.saveStampBoards([board]);
+
+  const now = new Date().toISOString();
+  const records = SAMPLE.map(s => Object.assign({
+    id: W.uuid(), isBooked: true, paidDiff: false, eungBingPassUsed: false,
+    doubleStampUsed: false, stampBoardId: board.id, stampQty: 1,
+    memo: '', createdAt: now, updatedAt: now
+  }, s));
+  W.saveRecords(records);
+
+  records.forEach(r => {
+    W.applyStampToBoard(board.id, 1, r.date, '관람 연동');
+    W.applyStampToBoard._lastOverflow = 0;
+    const bs = W.getStampBoards();
+    const b  = bs.find(x => x.id === board.id);
+    if (b?.history?.length) {
+      b.history[b.history.length - 1].recordId = r.id;
+      W.saveStampBoards(bs);
+    }
+  });
+}
+
+const frame = document.getElementById('app');
+frame.addEventListener('load', () => {
+  const W = frame.contentWindow;
+  const start = Date.now();
+  (function wait() {
+    const ready = W.getSchedule && W.getSchedule().length > 0;
+    if (!ready && Date.now() - start < 6000) return setTimeout(wait, 150);
+
+    seed(W);
+    const btn = W.document.querySelector(`.tab-btn[onclick*="'${TAB}'"]`);
+    if (btn) W.switchTab(TAB, btn);
+
+    // 캘린더는 10월을 보여주고, 이벤트가 걸린 날짜를 펼쳐 둔다
+    if (TAB === 'calendar') { W.initCal(); W.renderCalendar(); W.calDayClick('2026-10-03'); }
+    if (TAB === 'stats')    W.switchStatTab('heatmap', W.document.querySelector('.stats-subtab'));
+
+    document.title = 'SHOT ' + TAB;
+  })();
+});
+</script>
+</body>
+</html>

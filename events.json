@@ -1,0 +1,26 @@
+[
+  {
+    "name": "프리뷰 기간",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-08",
+    "color": "#2E8B94",
+    "description": "프리뷰 회차 50% 할인 적용 (1인 4매)",
+    "url": "https://x.com/_LIVECONNECTION/status/2092839605913768312"
+  },
+  {
+    "name": "웰컴 키트 증정",
+    "startDate": "2026-10-01",
+    "endDate": "2026-10-11",
+    "color": "#4DDB94",
+    "description": "티켓 수령 시 매표소에서 유료 티켓 1매당 1세트. 40%·50% 할인권, 할인 증빙 프리패스권, 더블 적립권 각 1매. 적용회차 10/1~11/1.",
+    "url": "https://x.com/_LIVECONNECTION/status/2095448001955369018"
+  },
+  {
+    "name": "커튼콜 위크",
+    "startDate": "2026-10-13",
+    "endDate": "2026-10-18",
+    "color": "#5CA8FF",
+    "description": "커튼콜 사진·영상 촬영 가능. 좌석 이동 및 삼각대 설치 제한, 연속 촬영·플래시 자제.",
+    "url": "https://x.com/_LIVECONNECTION/status/2095448001955369018"
+  }
+]
