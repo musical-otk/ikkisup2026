@@ -132,6 +132,11 @@
   .cal-session-casting{flex:1;font-size:12px;min-width:0;word-break:keep-all;}
   .cal-session-badge{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;white-space:nowrap;flex-shrink:0;}
   .cal-session-badge.done{background:var(--accent-light);color:var(--accent);}
+  /* 양도 — 관람과 헷갈리지 않게 색을 빼고 흐리게 둔다 */
+  .cal-session-badge.transferred{background:var(--bg3);color:var(--text3);}
+  .cal-session-chip.transferred{opacity:0.55;}
+  .cal-session-chip.transferred .cs-time{color:var(--text3);text-decoration:line-through;}
+  .upcoming-item.transferred{opacity:0.6;}
   .cal-session-badge.booked{background:#e6f9ee;color:var(--success);}
   [data-theme="dark"] .cal-session-badge.booked{background:#1a3a26;}
   .cal-session-add{font-size:11px;padding:4px 9px;border-radius:7px;border:1px solid var(--accent);color:var(--accent);background:none;cursor:pointer;white-space:nowrap;flex-shrink:0;}
@@ -623,6 +628,22 @@
         <input type="checkbox" id="rec-unconfirmed" style="width:16px;height:16px;accent-color:var(--accent);">
         미정 (예매 미확정)
       </label>
+    </div>
+    <!-- 양도 — 표는 있었지만 안 본 회차. 도장·통계·할인권에서 빠진다 -->
+    <div class="form-group" style="display:flex;align-items:center;gap:10px;padding:2px 0;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;color:var(--text2);">
+        <input type="checkbox" id="rec-transferred" onchange="onRecTransferredChange()"
+               style="width:16px;height:16px;accent-color:var(--accent);">
+        양도 (관람 안 함)
+      </label>
+    </div>
+    <div class="form-group" id="rec-transfer-to-group" style="display:none;">
+      <label class="form-label" for="rec-transfer-to">양도 대상</label>
+      <input type="text" id="rec-transfer-to" class="form-input" maxlength="40"
+             placeholder="누구에게 넘겼는지">
+      <div class="form-hint" style="font-size:11px;color:var(--text3);margin-top:4px;">
+        도장·통계·할인권 집계에서 빠집니다. 이미 받은 도장은 회수됩니다.
+      </div>
     </div>
     <!-- 좌석: 층/열/번 -->
     <div class="form-row" style="gap:8px;">
@@ -1289,6 +1310,16 @@ function migrateStampBoards(boards) {
   });
 }
 function getStampBoards()   { return migrateStampBoards(DB.get('stamp_boards', [])); }
+
+// ── 양도 ──
+// 표는 있었지만 실제로 보지 않은 회차. 좌석·가격·할인권은 그대로 기억해야 하므로
+// 별도 목록을 만들지 않고 기록에 상태만 붙인다.
+// 관람으로 치지 않으므로 도장·통계·할인권 집계에서 빠진다.
+// (할인권은 저장된 카운터가 아니라 기록에서 계산되므로, 빼면 저절로 복구된다)
+const ST_TRANSFERRED = '양도';
+function isTransferred(r) { return r && r.status === ST_TRANSFERRED; }
+function isWatched(r)     { return !isTransferred(r); }
+function watchedOnly(list) { return (list || []).filter(isWatched); }
 function saveStampBoards(s) { DB.set('stamp_boards', s); }
 
 // ============================================================
@@ -1402,7 +1433,8 @@ const COUPON_ITEMS = [
 // COUPON COUNT (실시간 계산)
 // ============================================================
 function calcCouponCount(key, coupons, boards, records, asOf) {
-  records = records || getRecords();
+  // 양도한 회차는 관람이 아니므로 할인권을 쓴 것으로 치지 않는다 → 자동 복구
+  records = watchedOnly(records || getRecords());
   if (!coupons[key]) coupons[key] = { count: 0, history: [] };
   // ① 수동 이력
   const manual = (coupons[key].history || []).reduce((sum, h) => {
@@ -1773,6 +1805,9 @@ function openAddRecord(date) {
   document.getElementById('rec-comment').value = '';
   document.getElementById('rec-memo').value = '';
   document.getElementById('rec-unconfirmed').checked = false;
+  document.getElementById('rec-transferred').checked = false;
+  document.getElementById('rec-transfer-to').value = '';
+  onRecTransferredChange();
   populateStampSelect();
   document.getElementById('rec-stamp-board').value = '';
   onRecStampBoardChange();
@@ -1810,6 +1845,9 @@ function editRecord(id) {
   document.getElementById('rec-comment').value = r.comment || '';
   document.getElementById('rec-memo').value    = r.memo    || '';
   document.getElementById('rec-unconfirmed').checked = r.isBooked === false;
+  document.getElementById('rec-transferred').checked = isTransferred(r);
+  document.getElementById('rec-transfer-to').value   = r.transferTo || '';
+  onRecTransferredChange();
   _stampFormInitializing = true;
   document.getElementById('rec-stamp-board').value = ''; // 이전 폼 잔류값 초기화
   populateStampSelect(r.stampBoardId || null);
@@ -1856,11 +1894,17 @@ function saveRecord() {
     }
   }
 
-  const stampBoardId = document.getElementById('rec-stamp-board').value;
+  // 양도로 바뀌면 아래에서 비운다 (const 면 재할당이 안 된다)
+  let stampBoardId   = document.getElementById('rec-stamp-board').value;
   const recQtyEl     = document.querySelector('input[name="rec-stamp-qty"]:checked');
-  const stampQty     = recQtyEl ? parseInt(recQtyEl.value) || 1 : 1;
+  let stampQty       = recQtyEl ? parseInt(recQtyEl.value) || 1 : 1;
   const numVal       = document.getElementById('rec-num').value;
   const priceVal     = document.getElementById('rec-price').value;
+
+  // 양도한 회차는 관람이 아니므로 도장을 달지 않는다.
+  // 폼에서 도장판을 골라둔 채 양도로 바꾸는 경우가 있어 여기서 끊는다.
+  const transferred = document.getElementById('rec-transferred').checked;
+  if (transferred) { stampBoardId = null; stampQty = 1; }
 
   const record = {
     id:           editId || uuid(),
@@ -1871,6 +1915,8 @@ function saveRecord() {
     uiju:        document.getElementById('rec-uiju').value    || '',
     eunhui:       document.getElementById('rec-eunhui').value   || '',
     isBooked:     !document.getElementById('rec-unconfirmed').checked,
+    status:       transferred ? ST_TRANSFERRED : '관람',
+    transferTo:   transferred ? document.getElementById('rec-transfer-to').value.trim() : '',
     seatFloor:    document.getElementById('rec-floor').value   || null,
     seatZone:     document.getElementById('rec-zone').value    || null,
     seatNumber:   numVal !== '' ? parseInt(numVal) : null,
@@ -1890,6 +1936,10 @@ function saveRecord() {
 
   if (editId) {
     records[records.findIndex(x => x.id === editId)] = record;
+    // 관람하던 기록을 양도로 바꾸면 이미 받은 도장을 회수한다.
+    // 아래 수정 처리는 stampBoardId 가 바뀐 경우만 보는데,
+    // 양도는 보드를 비우므로 그 경로로도 지워지지만 오버플로우 보드까지는 못 잡는다.
+    if (transferred && !isTransferred(prevRecord)) removeStampsForRecord(prevRecord || record);
     // 도장판 이력 수정 처리
     const prevBoardId = prevRecord?.stampBoardId || null;
     const prevQty     = prevRecord?.stampQty || 1;
@@ -2009,7 +2059,9 @@ function openDetail(id) {
   if (!r) return;
   const dow = ['일','월','화','수','목','금','토'];
   const d   = new Date(r.date + 'T00:00:00');
-  const bookedBadge = r.isBooked === false
+  const bookedBadge = isTransferred(r)
+    ? `<span style="font-size:11px;color:var(--text3);margin-left:6px;">↪ 양도${r.transferTo ? ' · ' + r.transferTo : ''}</span>`
+    : r.isBooked === false
     ? '<span style="font-size:11px;color:var(--text3);margin-left:6px;">미정</span>'
     : '<span style="font-size:11px;color:var(--success);margin-left:6px;">✅ 확정</span>';
   document.getElementById('detail-title').innerHTML = `${r.date} (${dow[d.getDay()]}) ${r.time}${bookedBadge}`;
@@ -2137,31 +2189,47 @@ function buildMiniSeat(floor, rowKey, num) {
   return html + '</div></div>';
 }
 
+// 기록에 딸린 도장을 회수한다. 삭제할 때와 양도로 바꿀 때 같은 처리가 필요하다.
+function removeStampsForRecord(target) {
+  if (!target) return false;
+  const boards = getStampBoards();
+  let stampChanged = false;
+  boards.forEach(board => {
+    if (!board.history) return;
+    const before = board.history.length;
+    // ① recordId 기반 삭제 (메인 보드 + 오버플로우 보드 모두 처리)
+    board.history = board.history.filter(h => !h.recordId || h.recordId !== target.id);
+    // ② fallback: recordId 없는 경우 → 연결된 보드에서 날짜 기준 마지막 항목 제거
+    if (board.history.length === before && board.id === target.stampBoardId) {
+      const ri = [...board.history].reverse().findIndex(h => h.date === target.date);
+      if (ri !== -1) board.history.splice(board.history.length - 1 - ri, 1);
+    }
+    if (board.history.length !== before) {
+      recalcStampCount(board); revalidateMilestones(board); stampChanged = true;
+    }
+  });
+  if (stampChanged) saveStampBoards(boards);
+  return stampChanged;
+}
+
+function onRecTransferredChange() {
+  const on = document.getElementById('rec-transferred').checked;
+  document.getElementById('rec-transfer-to-group').style.display = on ? '' : 'none';
+  // 양도면 도장을 달 수 없다. 고를 수 있게 두면 저장 때 조용히 버려져 혼란스럽다.
+  const sel = document.getElementById('rec-stamp-board');
+  if (sel) {
+    sel.disabled = on;
+    if (on) { sel.value = ''; if (typeof onRecStampBoardChange === 'function') onRecStampBoardChange(); }
+  }
+}
+
 function editCurrentRecord()   { if (currentDetailId) editRecord(currentDetailId); }
 function deleteCurrentRecord() {
   if (!currentDetailId) return;
   if (!confirm('이 기록을 삭제하시겠습니까?')) return;
   const records = getRecords();
   const target  = records.find(x => x.id === currentDetailId);
-  if (target) {
-    const boards = getStampBoards();
-    let stampChanged = false;
-    boards.forEach(board => {
-      if (!board.history) return;
-      const before = board.history.length;
-      // ① recordId 기반 삭제 (메인 보드 + 오버플로우 보드 모두 처리)
-      board.history = board.history.filter(h => !h.recordId || h.recordId !== target.id);
-      // ② fallback: recordId 없는 경우 → 연결된 보드에서 날짜 기준 마지막 항목 제거
-      if (board.history.length === before && board.id === target.stampBoardId) {
-        const ri = [...board.history].reverse().findIndex(h => h.date === target.date);
-        if (ri !== -1) board.history.splice(board.history.length - 1 - ri, 1);
-      }
-      if (board.history.length !== before) {
-        recalcStampCount(board); revalidateMilestones(board); stampChanged = true;
-      }
-    });
-    if (stampChanged) saveStampBoards(boards);
-  }
+  removeStampsForRecord(target);
   saveRecords(records.filter(x => x.id !== currentDetailId));
   dbDeleteRecordPhotos(currentDetailId);
   closePanel('overlay-detail');
@@ -2378,7 +2446,9 @@ function renderHome() {
     .filter(r => r.date >= today)
     .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
 
-  const nextShow = upcoming[0];
+  // 양도한 표는 내가 보러 가는 공연이 아니다. D-day 카드에서는 건너뛴다.
+  // 목록에는 남긴다 — 누구에게 넘겼는지가 기억해야 할 내용이다.
+  const nextShow = upcoming.find(isWatched);
   const rest     = upcoming.filter(r => r !== nextShow);
 
   // ① D-day 카드
@@ -2415,12 +2485,16 @@ function renderHome() {
       const upMsBadge = (msRecordMap[r.id]||[]).map(l =>
         `<span style="font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;">${l}</span>`
       ).join('');
-      return `<div class="upcoming-item" onclick="openDetail('${r.id}')">
-        <div class="upcoming-dday" style="${r.isBooked===false?'color:var(--text3);':''}">${dday2}</div>
+      const tr = isTransferred(r);
+      const trTail = tr
+        ? ` <span style="font-size:10px;color:var(--text3);">↪ 양도${r.transferTo ? ' · ' + r.transferTo : ''}</span>`
+        : (r.isBooked===false ? ' <span style="font-size:10px;color:var(--text3);">미정</span>' : '');
+      return `<div class="upcoming-item${tr ? ' transferred' : ''}" onclick="openDetail('${r.id}')">
+        <div class="upcoming-dday" style="${(tr || r.isBooked===false)?'color:var(--text3);':''}">${dday2}</div>
         <div class="upcoming-date">${r.date.slice(5)} (${dow[d2.getDay()]}) ${r.time}</div>
         ${seat2 ? `<div class="upcoming-seat">${seat2}</div>` : ''}
-        ${upMsBadge}
-        <div class="upcoming-cast">${castStr}${r.isBooked===false?' <span style="font-size:10px;color:var(--text3);">미정</span>':''}</div>
+        ${tr ? '' : upMsBadge}
+        <div class="upcoming-cast">${castStr}${trTail}</div>
       </div>`;
     }).join('');
   } else { upCard.style.display = 'none'; }
@@ -2597,8 +2671,10 @@ function renderCalendar() {
   const schByDate = {};
   schedule.forEach(s => { if (!schByDate[s.date]) schByDate[s.date] = []; schByDate[s.date].push(s); });
 
-  const doneSet   = new Set(records.map(r => `${r.date}-${r.time}`));
-  const bookedSet = new Set(records.filter(r => r.isBooked !== false).map(r => `${r.date}-${r.time}`));
+  // 양도한 회차는 ✅ 관람으로 치지 않는다. 대신 지우지 않고 따로 표시한다.
+  const doneSet   = new Set(watchedOnly(records).map(r => `${r.date}-${r.time}`));
+  const bookedSet = new Set(watchedOnly(records).filter(r => r.isBooked !== false).map(r => `${r.date}-${r.time}`));
+  const transSet  = new Set(records.filter(isTransferred).map(r => `${r.date}-${r.time}`));
 
   const dow    = ['일','월','화','수','목','금','토'];
   const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -2657,9 +2733,12 @@ function renderCalendar() {
       if (ds === calSelectedDs) cls += ' selected';
       const sessionHtml = filtered.sort((a,b)=>a.time.localeCompare(b.time)).map(s => {
         const key = `${ds}-${s.time}`;
-        const isBooked = bookedSet.has(key), isDone = doneSet.has(key);
-        const chipCls  = isBooked ? 'cal-session-chip booked' : isDone ? 'cal-session-chip done' : 'cal-session-chip';
-        return `<div class="${chipCls}"><span class="cs-icon">${isDone ? '✅' : ''}</span><span class="cs-time">${s.time}</span></div>`;
+        const isBooked = bookedSet.has(key), isDone = doneSet.has(key), isTrans = transSet.has(key);
+        const chipCls  = isTrans  ? 'cal-session-chip transferred'
+                       : isBooked ? 'cal-session-chip booked'
+                       : isDone   ? 'cal-session-chip done' : 'cal-session-chip';
+        const icon = isTrans ? '↪' : isDone ? '✅' : '';
+        return `<div class="${chipCls}"><span class="cs-icon">${icon}</span><span class="cs-time">${s.time}</span></div>`;
       }).join('');
       html += `<div class="${cls}" onclick="calDayClick('${ds}')">
         <span class="cal-day-num">${day}</span>
@@ -2717,7 +2796,11 @@ function renderCalDayPanel(ds, daySch, doneSet, bookedSet, records) {
       const isDone   = doneSet.has(key);
       const isBooked = bookedSet.has(key);
       const recs = dayRecords.filter(r => r.time === s.time);
-      const badge = isBooked ? '<span class="cal-session-badge booked">✓ 확정</span>' : isDone ? '<span class="cal-session-badge done">✅</span>' : '';
+      const trans = recs.find(isTransferred);
+      const badge = trans
+        ? `<span class="cal-session-badge transferred">↪ 양도${trans.transferTo ? ' · ' + trans.transferTo : ''}</span>`
+        : isBooked ? '<span class="cal-session-badge booked">✓ 확정</span>'
+        : isDone ? '<span class="cal-session-badge done">✅</span>' : '';
       const castStr = ROLES.map(r => s[r.key]).filter(Boolean).join(' · ');
       const btn = recs.length === 0
         ? `<button class="cal-session-add" onclick="openAddRecordFromSchedule('${ds}','${s.time}','${JSON.stringify(s).replace(/"/g,'&quot;')}')">+ 기록</button>`
@@ -2727,7 +2810,10 @@ function renderCalDayPanel(ds, daySch, doneSet, bookedSet, records) {
   } else if (dayRecords.length) {
     dayRecords.sort((a,b)=>a.time.localeCompare(b.time)).forEach(r => {
       const castStr = ROLES.map(role => r[role.key]).filter(Boolean).join(' · ');
-      html += `<div class="cal-session-row"><div class="cal-session-time">${r.time}</div><div class="cal-session-casting">${castStr}</div><span class="cal-session-badge done">✅</span><button class="cal-session-add" onclick="openDetail('${r.id}')">상세</button></div>`;
+      const b = isTransferred(r)
+        ? `<span class="cal-session-badge transferred">↪ 양도${r.transferTo ? ' · ' + r.transferTo : ''}</span>`
+        : '<span class="cal-session-badge done">✅</span>';
+      html += `<div class="cal-session-row"><div class="cal-session-time">${r.time}</div><div class="cal-session-casting">${castStr}</div>${b}<button class="cal-session-add" onclick="openDetail('${r.id}')">상세</button></div>`;
     });
   } else { html += '<div style="padding:12px 14px;color:var(--text3);font-size:13px;">스케줄 없는 날</div>'; }
   html += `<div style="padding:10px 14px 14px;"><button class="btn btn-primary btn-sm" style="width:100%;" onclick="openAddRecord('${ds}')">+ 이 날 기록 추가</button></div></div>`;
@@ -2756,7 +2842,7 @@ function toggleMoneyBlur() {
 }
 
 function renderStats() {
-  const records  = getRecords();
+  const records  = watchedOnly(getRecords());   // 양도 제외
   const schedule = getSchedule();
 
   // 배우별 관람 횟수
@@ -2845,7 +2931,7 @@ function queryPairStats() {
     return;
   }
   const schedule = getSchedule();
-  const records  = getRecords();
+  const records  = watchedOnly(getRecords());   // 양도 제외
 
   // 선택 배우를 모두 포함하는 스케줄/기록 필터
   function matchSelected(entry) {
@@ -2947,7 +3033,7 @@ function switchStatTab(tab, btn) {
 // HEATMAP (1층·2층 통합 — 백암아트홀은 417석이라 한 화면에 들어간다)
 // ============================================================
 function renderHeatmap() {
-  const records = getRecords();
+  const records = watchedOnly(getRecords());   // 양도 제외
 
   const seatMap = {};
   records.forEach(r => {
@@ -3037,7 +3123,7 @@ function toggleCouponHistory() {
 function renderCouponList() {
   const coupons = getCoupons();
   const boards  = getStampBoards();
-  const records = getRecords();
+  const records = watchedOnly(getRecords());   // 양도 제외
   const today   = localDate();
 
   const histCollapsed = DB.get('couponHistoryCollapsed', true);
@@ -3106,7 +3192,7 @@ function renderCouponList() {
 function renderCouponAllHistory() {
   const coupons = getCoupons();
   const boards  = getStampBoards();
-  const records = getRecords();
+  const records = watchedOnly(getRecords());   // 양도 제외
   const allRows = [];
   const dow = ['일','월','화','수','목','금','토'];
 
@@ -3256,7 +3342,7 @@ const COUPON_PACKS = {
 function useDoubleStamp() {
   const coupons = getCoupons();
   const boards  = getStampBoards();
-  const records = getRecords();
+  const records = watchedOnly(getRecords());   // 양도 제외
   // 최종 수량(적립 예정 포함)으로 체크 — 미래 날짜 적립 예정도 사용 가능
   const final = calcCouponCount('doubleStamp', coupons, boards, records, null);
   if (final <= 0) { showToast('더블적립권이 없습니다 (적립 예정 포함)'); return; }
@@ -3284,7 +3370,7 @@ function autoAddCouponPack(date) {
 }
 
 function scanPastRecordsForCouponPacks() {
-  const records = getRecords();
+  const records = watchedOnly(getRecords());   // 양도 제외
 
   // ── 0. 차액지불+증빙패스 동시 체크된 잘못된 기록 교정 ──
   const conflicts = records.filter(r => r.paidDiff && r.eungBingPassUsed);
