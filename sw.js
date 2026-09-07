@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ikkisup2026-v3';
+const CACHE_NAME = 'ikkisup2026-v4';
 const BASE = '/ikkisup2026';
 
 const PRECACHE_URLS = [
@@ -36,6 +36,9 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request))
+      // 딥링크(?date=...)로 들어오면 주소가 달라 캐시에 없다.
+      // 오프라인일 때 화면이 아예 안 뜨므로 화면 이동은 앱 첫 페이지로 되돌린다.
+      .catch(() => caches.match(event.request).then(hit =>
+        hit || (event.request.mode === 'navigate' ? caches.match(BASE + '/') : undefined)))
   );
 });
