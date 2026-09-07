@@ -28,8 +28,19 @@ Section 'L1 데이터 검증'
 if ($LASTEXITCODE -ne 0) { $fail++ }
 
 Section 'L2 정적 점검'
-& python (Join-Path $root 'scripts\check_html.py')
-if ($LASTEXITCODE -ne 0) { $fail++ }
+# check_html.py 는 스킬에서 그대로 실행하며 프로젝트 경로를 인자로 받는다.
+# 프로젝트에 사본이 있으면 그쪽을 우선한다.
+$checker = Join-Path $root 'scripts\check_html.py'
+if (-not (Test-Path $checker)) {
+    $checker = Join-Path $env:USERPROFILE '.claude\skills\musical-diary\scripts\check_html.py'
+}
+if (Test-Path $checker) {
+    & python $checker $root
+    if ($LASTEXITCODE -ne 0) { $fail++ }
+} else {
+    Write-Host "[!] check_html.py 를 찾을 수 없습니다" -ForegroundColor Yellow
+    $fail++
+}
 
 Section 'L3 로직 셀프테스트'
 
@@ -66,7 +77,11 @@ try {
     $errFile = Join-Path $tmp 'err.txt'
     Start-Process -FilePath $chrome -ArgumentList $chromeArgs -RedirectStandardOutput $dump -RedirectStandardError $errFile -NoNewWindow -Wait | Out-Null
 
-    & python (Join-Path $root 'scripts\parse_selftest.py') $dump
+    $parser = Join-Path $root 'scripts\parse_selftest.py'
+    if (-not (Test-Path $parser)) {
+        $parser = Join-Path $env:USERPROFILE '.claude\skills\musical-diary\scripts\parse_selftest.py'
+    }
+    & python $parser $dump
     if ($LASTEXITCODE -ne 0) { $fail++ }
 } catch {
     Write-Host "[!] $_" -ForegroundColor Red
