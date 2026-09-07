@@ -3919,6 +3919,30 @@ function restoreFilters() {
   if (pairExpandedRoles.size > 0) renderPairActorChips();
 }
 
+// ── 허브에서 회차로 바로 들어오기 ──
+// otk-schedule 이 ?date=YYYY-MM-DD&time=HH:MM 으로 연다.
+// 기록이 있으면 그 상세를, 없으면 캘린더에서 그 날짜를 펼친다.
+function openFromHub() {
+  const q    = new URLSearchParams(location.search);
+  const date = q.get('date') || '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  const time = q.get('time') || '';
+
+  // 주소창에 남겨두면 새로고침할 때마다 다시 열려서 성가시다.
+  try { history.replaceState(null, '', location.pathname); } catch {}
+
+  const sameDay = getRecords().filter(r => r.date === date);
+  const rec = (time && sameDay.find(r => r.time === time)) || sameDay[0];
+  if (rec) { openDetail(rec.id); return; }
+
+  const tab = document.querySelector('.tab-btn[onclick*="calendar"]');
+  if (tab) switchTab('calendar', tab);
+  calYear  = +date.slice(0, 4);
+  calMonth = +date.slice(5, 7) - 1;
+  calSelectedDs = null;
+  calDayClick(date);
+}
+
 function init() {
   const s = getSettings();
   applyDark(s.darkMode);
@@ -3937,6 +3961,7 @@ function init() {
   const savedAt = localStorage.getItem('scheduleUpdatedAt');
   const timeEl  = document.getElementById('schedule-update-time');
   if (timeEl && savedAt) timeEl.textContent = savedAt + ' (캐시)';
+  openFromHub();
 }
 init();
 </script>
