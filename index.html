@@ -507,8 +507,8 @@
     <div id="event-fetch-status" style="font-size:12px;color:var(--text3);margin-top:6px;"></div>
   </div>
   <div class="card">
-    <div class="card-title">🏠 홈 예정 일정 배역 표시</div>
-    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">선택한 배역만 예정 리스트에 표시 (D-day·첫 번째 일정은 항상 전체)</div>
+    <div class="card-title">🏠 홈 목록 배역 표시</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">예정 일정·최근 관람에 적을 배역. 아무것도 안 고르면 전체 (D-day 카드는 항상 전체)</div>
     <div id="home-role-setting" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;"></div>
   </div>
   <div class="card">
@@ -2279,7 +2279,17 @@ function deleteCurrentRecord() {
 // ============================================================
 // SETTINGS
 // ============================================================
-// 홈 예정 일정 배역 표시 설정
+// 홈 목록에 어느 배역을 적을지.
+// 최근 관람은 ROLES 앞 2개를 잘라 쓰고 있었다. 베이스는 주역이 2개라
+// '앞 두 개 = 주역'이었는데, 배역이 늘어난 작품에서는 뒤가 조용히 잘린다.
+// 예정 목록과 같은 설정을 쓰고, 아무것도 안 고르면 전체를 적는다.
+function homeCastStr(r) {
+  const picked = DB.get('homeUpcomingRoles', []);
+  const roles  = picked.length ? ROLES.filter(x => picked.includes(x.key)) : ROLES;
+  return roles.map(x => r[x.key]).filter(Boolean).join(' · ');
+}
+
+// 홈 목록 배역 표시 설정
 function renderHomeRoleSetting() {
   const el = document.getElementById('home-role-setting');
   if (!el) return;
@@ -2520,9 +2530,7 @@ function renderHome() {
       const diff2 = Math.round((d2 - new Date(today + 'T00:00:00')) / 86400000);
       const dday2 = diff2 === 0 ? 'D-DAY' : `D-${diff2}`;
       const seat2 = r.seatZone ? (r.seatFloor ? r.seatFloor + ' ' : '') + r.seatZone + '열 ' + r.seatNumber + '번' : '';
-      const homeRoles = DB.get('homeUpcomingRoles', []);
-      const rolesToShow = ROLES.filter(r => homeRoles.includes(r.key));
-      const castStr = rolesToShow.map(role => r[role.key]).filter(Boolean).join(' · ');
+      const castStr = homeCastStr(r);
       const upMsBadge = (msRecordMap[r.id]||[]).map(l =>
         `<span style="font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;">${l}</span>`
       ).join('');
@@ -2591,7 +2599,7 @@ function renderHome() {
   document.getElementById('home-recent').innerHTML = pastAll.length === 0
     ? '<div style="text-align:center;color:var(--text3);padding:12px;font-size:13px;">기록이 없습니다</div>'
     : past.map(r => {
-        const castStr = ROLES.map(role => r[role.key]).filter(Boolean).slice(0,2).join(' · ');
+        const castStr = homeCastStr(r);
         const msBadge = (msRecordMap[r.id]||[]).map(l =>
           `<span style="font-size:11px;font-weight:700;color:var(--accent);flex-shrink:0;">${l}</span>`
         ).join('');
