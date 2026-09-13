@@ -1250,6 +1250,46 @@ const DB = {
   set(key, val) { localStorage.setItem(APP_PREFIX + key, JSON.stringify(val)); }
 };
 
+
+// ── 캐스팅 재동기화 ──
+// 캐스팅이 바뀌어 schedule.json 을 새로 올려도, 이미 만들어 둔 기록은
+// 만들 때 복사해 둔 옛 캐스팅을 그대로 들고 있었다.
+// 캘린더는 스케줄을 직접 읽어 바뀌는데, D-day 카드·예정 목록·상세는
+// 기록을 읽으므로 안 바뀐다.
+// 아직 안 본 회차(오늘 이후)는 스케줄이 정답이므로 맞춘다.
+// 지난 회차는 실제로 본 캐스팅이라 건드리지 않는다.
+function syncCastingFromSchedule() {
+  const schedule = getSchedule();
+  if (!schedule.length) return 0;
+
+  const today = localDate();
+  const byKey = {};
+  schedule.forEach(s => { byKey[s.date + '|' + s.time] = s; });
+
+  const records = getRecords();
+  let changed = 0;
+  const when = [];
+  records.forEach(r => {
+    if (!r.date || r.date < today) return;
+    const s = byKey[r.date + '|' + r.time];
+    if (!s) return;
+    let hit = false;
+    ROLES.forEach(role => {
+      const next = s[role.key];
+      // 스케줄에 값이 없으면 비우지 않는다. 직접 적어둔 것일 수 있다.
+      if (next && r[role.key] !== next) { r[role.key] = next; hit = true; }
+    });
+    if (hit) { changed++; when.push(r.date.slice(5) + ' ' + r.time); }
+  });
+
+  if (changed) {
+    saveRecords(records);
+    showToast('캐스팅 변경 ' + changed + '건 반영 · ' +
+              when.slice(0, 2).join(', ') + (changed > 2 ? ' 외' : ''));
+  }
+  return changed;
+}
+
 function localDate() {
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -2357,6 +2397,7 @@ async function fetchSchedule(manual) {
     if (timeEl) timeEl.textContent = now;
     if (statusEl) statusEl.textContent = `✓ ${data.length}개 회차 로드됨`;
     if (manual) showToast(`스케줄 ${data.length}개 업데이트 완료`);
+    syncCastingFromSchedule();
     renderCalendar(); renderHome();
   } catch {
     const cached = getSchedule();
