@@ -1262,7 +1262,6 @@ function syncCastingFromSchedule() {
   const schedule = getSchedule();
   if (!schedule.length) return 0;
 
-  const today = localDate();
   const byKey = {};
   schedule.forEach(s => { byKey[s.date + '|' + s.time] = s; });
 
@@ -1270,13 +1269,16 @@ function syncCastingFromSchedule() {
   let changed = 0;
   const when = [];
   records.forEach(r => {
-    if (!r.date || r.date < today) return;
+    // 지난 회차도 맞춘다. 캐스팅은 관찰값이 아니라 스케줄의 복사본이고,
+    // schedule.json 을 고치는 주체가 사용자다. 안 맞추면 배우별 관람 횟수가 틀린다.
+    // 단, 폼에서 스케줄과 다르게 직접 적은 기록(castManual)은 지킨다.
+    if (!r.date || r.castManual) return;
     const s = byKey[r.date + '|' + r.time];
     if (!s) return;
     let hit = false;
     ROLES.forEach(role => {
       const next = s[role.key];
-      // 스케줄에 값이 없으면 비우지 않는다. 직접 적어둔 것일 수 있다.
+      // 스케줄에 값이 없는 배역은 비우지 않는다.
       if (next && r[role.key] !== next) { r[role.key] = next; hit = true; }
     });
     if (hit) { changed++; when.push(r.date.slice(5) + ' ' + r.time); }
@@ -1941,6 +1943,18 @@ function saveRecord() {
   const numVal       = document.getElementById('rec-num').value;
   const priceVal     = document.getElementById('rec-price').value;
 
+  // 스케줄과 다르게 캐스팅을 적었으면 표시해 둔다.
+  // 이 기록은 나중에 schedule.json 이 바뀌어도 재동기화가 건드리지 않는다.
+  // (긴급 대타처럼 스케줄에 없는 캐스팅을 직접 적는 경우)
+  const castManual = (() => {
+    const s = getSchedule().find(x => x.date === date && x.time === time);
+    if (!s) return false;
+    return ROLES.some(role => {
+      const v = document.getElementById('rec-' + role.key);
+      return v && v.value && s[role.key] && v.value !== s[role.key];
+    });
+  })();
+
   // 양도한 회차는 관람이 아니므로 도장을 달지 않는다.
   // 폼에서 도장판을 골라둔 채 양도로 바꾸는 경우가 있어 여기서 끊는다.
   const transferred = document.getElementById('rec-transferred').checked;
@@ -1955,6 +1969,7 @@ function saveRecord() {
     uiju:        document.getElementById('rec-uiju').value    || '',
     eunhui:       document.getElementById('rec-eunhui').value   || '',
     isBooked:     !document.getElementById('rec-unconfirmed').checked,
+    castManual,
     status:       transferred ? ST_TRANSFERRED : '관람',
     transferTo:   transferred ? document.getElementById('rec-transfer-to').value.trim() : '',
     seatFloor:    document.getElementById('rec-floor').value   || null,
