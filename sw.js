@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ikkisup2026-v4';
+const CACHE_NAME = 'ikkisup2026-v5';
 const BASE = '/ikkisup2026';
 
 const PRECACHE_URLS = [
@@ -6,6 +6,7 @@ const PRECACHE_URLS = [
   BASE + '/index.html',
   BASE + '/manifest.json',
   BASE + '/icon-192.png',
+  BASE + '/apple-touch-icon.png',
   BASE + '/icon-512.png',
 ];
 
