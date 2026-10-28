@@ -572,7 +572,7 @@
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">날짜 *</label>
-        <input type="date" class="form-control" id="rec-date" onchange="autoFillCasting()">
+        <input type="date" class="form-control" id="rec-date" onchange="autoFillCasting(); applyDefaultStampQty(); updateRecQtyLabel();">
       </div>
       <div class="form-group">
         <label class="form-label">시간 *</label>
@@ -722,21 +722,22 @@
         <label class="form-label">도장 수량</label>
         <div style="display:flex;gap:8px;">
           <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border:1.5px solid var(--accent);border-radius:8px;cursor:pointer;font-size:13px;color:var(--accent);font-weight:700;" id="rec-qty-label-1">
-            <input type="radio" name="rec-stamp-qty" value="1" checked onchange="updateRecQtyLabel()"> 1개
+            <input type="radio" name="rec-stamp-qty" value="1" checked onchange="_recQtyTouched = true; updateRecQtyLabel()"> 1개
           </label>
           <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" id="rec-qty-label-2">
-            <input type="radio" name="rec-stamp-qty" value="2" onchange="updateRecQtyLabel()"> 2개
+            <input type="radio" name="rec-stamp-qty" value="2" onchange="_recQtyTouched = true; updateRecQtyLabel()"> 2개
           </label>
           <label style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;" id="rec-qty-label-3">
-            <input type="radio" name="rec-stamp-qty" value="3" onchange="updateRecQtyLabel()"> 3개
+            <input type="radio" name="rec-stamp-qty" value="3" onchange="_recQtyTouched = true; updateRecQtyLabel()"> 3개
           </label>
         </div>
         <div id="rec-double-stamp-row" style="display:none;margin-top:8px;">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--text2);">
-            <input type="checkbox" id="rec-double-stamp-used" style="width:16px;height:16px;accent-color:var(--accent);">
+            <input type="checkbox" id="rec-double-stamp-used" style="width:16px;height:16px;accent-color:var(--accent);" onchange="onRecDoubleStampChange()">
             더블적립권 사용 <span id="rec-double-stamp-avail" style="font-size:11px;color:var(--text3);"></span>
           </label>
         </div>
+        <div id="rec-double-week-hint" style="display:none;margin-top:6px;font-size:11px;color:var(--text3);">더블 적립 위크 · 기본 2개, 더블적립권을 쓰면 3개</div>
       </div>
     </div>
     <!-- 한줄 코멘트 (도장판 아래로 이동) -->
@@ -812,8 +813,8 @@
         </div>
         <div style="flex:1;text-align:center;background:var(--bg1);border-radius:8px;padding:8px 4px;border:1.5px solid var(--accent);">
           <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">8회</div>
-          <div style="font-weight:700;font-size:13px;color:var(--accent);">📸 폴라로이드</div>
-          <div style="font-size:10px;color:var(--text3);">캐스트 지정</div>
+          <div style="font-weight:700;font-size:12px;color:var(--accent);">📸 폴라로이드<br>또는 💿 OST</div>
+          <div style="font-size:10px;color:var(--text3);">택1</div>
         </div>
       </div>
       <div style="font-size:11px;color:var(--text2);line-height:1.7;">
@@ -877,19 +878,19 @@
   </div>
 </div>
 
-<!-- ===== MILESTONE CHOICE PANEL (4칸) ===== -->
+<!-- ===== MILESTONE CHOICE PANEL (8칸) ===== -->
 <div class="overlay" id="overlay-milestone-choice">
   <div class="panel" style="padding:16px 16px 28px;">
     <div class="panel-handle"></div>
-    <div style="font-size:13px;color:var(--text3);margin-bottom:12px;">🎉 4칸 달성 · 혜택 선택</div>
+    <div style="font-size:13px;color:var(--text3);margin-bottom:12px;">🎉 8칸 달성 · 혜택 선택</div>
     <div style="display:flex;gap:8px;">
-      <button onclick="chooseMilestoneReward('coupon')"
-        style="flex:1;padding:12px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text1);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
-        🏷 할인권
-      </button>
       <button onclick="chooseMilestoneReward('polaroid')"
         style="flex:1;padding:12px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text1);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
-        📸 폴라로이드
+        📸 지정 폴라로이드
+      </button>
+      <button onclick="chooseMilestoneReward('ost')"
+        style="flex:1;padding:12px 8px;border-radius:10px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text1);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">
+        💿 미니 실황 OST
       </button>
     </div>
   </div>
@@ -1329,13 +1330,24 @@ function saveCoupons(c) { DB.set('coupons', c); }
 // STAMP BOARD MIGRATION
 // ============================================================
 // 이끼숲 재관람 카드: 8칸, 4·6·8회 3단계 보상 (선택지 없음)
-// 공식 안내 — 4회 40% 할인권 / 6회 50% 할인권 / 8회 폴라로이드(캐스트 지정)
+// 공식 안내 — 4회 40% 할인권 / 6회 50% 할인권 / 8회 지정 폴라로이드 또는 미니 실황 OST (택1, 10/16~)
 function defaultMilestones() {
   return [
     { at: 4, reward: '40% 할인권 1매',             couponKey: 'discount40', qty: 1, notified: false },
     { at: 6, reward: '50% 할인권 1매',             couponKey: 'discount50', qty: 1, notified: false },
     { at: 8, reward: '📸 폴라로이드 (캐스트 지정)', couponKey: null,          notified: false }
   ];
+}
+// 8회 혜택은 고른 것으로 보여준다 (rewardChoice: 'polaroid' | 'ost', 안 고른 판은 폴라로이드)
+const MS8_REWARDS = {
+  polaroid: { icon: '📸', label: '지정 폴라로이드' },
+  ost:      { icon: '💿', label: '미니 실황 OST' },
+};
+function ms8Reward(m) { return MS8_REWARDS[m && m.rewardChoice === 'ost' ? 'ost' : 'polaroid']; }
+function msRewardLabel(m) {
+  if (m.at !== 8) return m.reward;
+  const r = ms8Reward(m);
+  return `${r.icon} ${r.label}`;
 }
 
 function migrateStampBoards(boards) {
@@ -1538,7 +1550,7 @@ function revalidateMilestones(board) {
   (board.milestones || []).forEach(m => {
     if (board.currentCount < m.at) {
       m.notified = false;
-      if (m.choiceRequired) m.rewardChoice = null;
+      if (m.choiceRequired || m.at === 8) m.rewardChoice = null;
     }
   });
 }
@@ -1740,6 +1752,35 @@ function populateStampSelect(keepBoardId) {
   if (keepBoardId) sel.value = keepBoardId;
   else if (saved)  sel.value = saved;
 }
+// 더블 적립 위크 — 이 기간 관람은 도장 2개, 더블적립권을 쓰면 3개
+const DOUBLE_STAMP_WEEK = { startDate: '2026-10-20', endDate: '2026-11-01' };
+function isDoubleStampWeek(date) {
+  return !!date && date >= DOUBLE_STAMP_WEEK.startDate && date <= DOUBLE_STAMP_WEEK.endDate;
+}
+function baseStampQty(date) { return isDoubleStampWeek(date) ? 2 : 1; }
+function isEditingRecord() { return !!document.getElementById('edit-record-id')?.value; }
+let _recQtyTouched = false;   // 수량을 직접 고르면 날짜를 바꿔도 기본값으로 덮지 않는다
+function setRecQty(n) {
+  const el = document.querySelector(`input[name="rec-stamp-qty"][value="${n}"]`);
+  if (el) el.checked = true;
+}
+// 새 기록에만 기간 기본값을 넣는다 (이미 입력한 기록은 그대로)
+function applyDefaultStampQty() {
+  if (isEditingRecord() || _recQtyTouched) return;
+  if (!document.getElementById('rec-stamp-board')?.value) return;
+  const date = document.getElementById('rec-date').value;
+  const ds   = document.getElementById('rec-double-stamp-used');
+  setRecQty(baseStampQty(date) + (ds && ds.checked && isDoubleStampWeek(date) ? 1 : 0));
+}
+// 기간 중에는 더블적립권 체크가 수량을 바로 바꾼다 (2 ↔ 3)
+function onRecDoubleStampChange() {
+  const date = document.getElementById('rec-date').value;
+  if (!isDoubleStampWeek(date)) return;
+  const ds = document.getElementById('rec-double-stamp-used');
+  setRecQty(baseStampQty(date) + (ds.checked ? 1 : 0));
+  updateRecQtyLabel();
+  checkRecFormOverflow();
+}
 function onRecStampBoardChange() {
   const val = document.getElementById('rec-stamp-board').value;
   const qg  = document.getElementById('rec-stamp-qty-group');
@@ -1750,6 +1791,7 @@ function onRecStampBoardChange() {
     if (r1) { r1.checked = true; updateRecQtyLabel(); }
     return;
   }
+  applyDefaultStampQty(); updateRecQtyLabel();
   checkRecFormOverflow();
 }
 function updateRecQtyLabel() {
@@ -1768,6 +1810,8 @@ function updateRecQtyLabel() {
   const dsRow = document.getElementById('rec-double-stamp-row');
   const dsCb  = document.getElementById('rec-double-stamp-used');
   const dsAvail = document.getElementById('rec-double-stamp-avail');
+  const weekHint = document.getElementById('rec-double-week-hint');
+  if (weekHint) weekHint.style.display = isDoubleStampWeek(document.getElementById('rec-date')?.value) ? '' : 'none';
   if (dsRow) {
     const show = parseInt(qty) >= 2;
     dsRow.style.display = show ? '' : 'none';
@@ -1834,6 +1878,9 @@ function resetTimeOptions() {
 // ============================================================
 function openAddRecord(date) {
   _stampFormInitializing = true;
+  _recQtyTouched = false;
+  const _dsReset = document.getElementById('rec-double-stamp-used');
+  if (_dsReset) _dsReset.checked = false;
   document.getElementById('record-panel-title').textContent = '관람 기록 추가';
   document.getElementById('edit-record-id').value = '';
   document.getElementById('rec-date').value = date || '';
@@ -2494,7 +2541,7 @@ function renderHome() {
       const prev = cumul; cumul += (h.qty||1);
       (board.milestones||[]).forEach(m => {
         if (prev < m.at && cumul >= m.at && m.notified) {
-          const lbl = m.couponKey ? '🏷' : '📸';   // 할인권 보상 / 폴라로이드
+          const lbl = m.couponKey ? '🏷' : ms8Reward(m).icon;   // 할인권 보상 / 폴라로이드·OST
           // recordId 있으면 직접, 없으면 같은 날짜 record로 fallback
           const rid = h.recordId ||
             (records.find(r => r.date === h.date) || {}).id;
@@ -3562,7 +3609,7 @@ function renderStampBoards() {
   if (allDone) {
     html += `<div style="text-align:center;padding:12px 0 8px;">
       <button class="btn btn-primary" onclick="openAddStampBoard()" style="width:100%;padding:14px;">🆕 새 재관람 카드 시작하기</button>
-      <p style="font-size:12px;color:var(--text3);margin-top:8px;">8칸 · 4회:40% · 6회:50% · 8회:📸폴라로이드</p>
+      <p style="font-size:12px;color:var(--text3);margin-top:8px;">8칸 · 4회:40% · 6회:50% · 8회:📸폴라로이드 또는 💿OST</p>
     </div>`;
   }
   if (!boards.length) { document.getElementById('stamp-boards-list').innerHTML = html; return; }
@@ -3584,14 +3631,14 @@ function renderStampBoards() {
     const dateLabel = d => { if (!d) return ''; const [,m,dd]=d.split('-'); return ` <span style="font-size:10px;color:var(--text3);font-weight:400;">(${parseInt(m)}/${parseInt(dd)})</span>`; };
     let statusHtml = '';
     if (paused)          statusHtml = `<div class="stamp-status-row stamp-status-paused">일시정지 중</div>`;
-    else if (alldone)    statusHtml = `<div class="stamp-status-row stamp-status-done">📸 폴라로이드 달성!${dateLabel(lastDoneDate)}</div>`;
-    else if (lastDone)   statusHtml = `<div class="stamp-status-row stamp-status-mid">🏷 ${lastDone.reward} 수령${dateLabel(lastDoneDate)}</div>`;
+    else if (alldone)    statusHtml = `<div class="stamp-status-row stamp-status-done">${msRewardLabel(lastDone || { at: 8 })} 달성!${dateLabel(lastDoneDate)}</div>`;
+    else if (lastDone)   statusHtml = `<div class="stamp-status-row stamp-status-mid">${lastDone.couponKey ? '🏷 ' : ''}${msRewardLabel(lastDone)} 수령${dateLabel(lastDoneDate)}</div>`;
     else if (toNext!==null) statusHtml = `<div class="stamp-status-row stamp-status-next">다음까지 ${toNext}개</div>`;
 
     const markers = milestones.map(m => {
       const pos  = (m.at/total*100).toFixed(2);
       const done = cur >= m.at;
-      return `<div class="progress-marker" style="left:calc(${pos}% - 1px);${done?'background:var(--accent);':''}" title="${m.at}회 · ${m.reward}"></div>`;
+      return `<div class="progress-marker" style="left:calc(${pos}% - 1px);${done?'background:var(--accent);':''}" title="${m.at}회 · ${m.at === 8 ? '폴라로이드 또는 OST' : m.reward}"></div>`;
     }).join('');
 
     return `<div class="stamp-board${paused?' paused':''}">
@@ -3824,34 +3871,33 @@ function showStandaloneOverflowConfirm(qty, date, method, comment) {
 function triggerMilestonesIfNeeded(board, boardId) {
   (board.milestones||[]).sort((a,b)=>a.at-b.at).forEach(m => {
     if (board.currentCount >= m.at && !m.notified) {
-      if (m.choiceRequired) {
-        // 선택 필요 — notified는 chooseMilestoneReward에서 설정
-        setTimeout(() => openMilestoneChoice(boardId), 600);
-      } else {
-        m.notified = true;
-      }
+      m.notified = true;
+      // 8회: 폴라로이드 / 미니 실황 OST 중 고르기 (안 고르면 폴라로이드로 보이고, 이력에서 바꿀 수 있다)
+      if (m.at === 8 && !m.rewardChoice) setTimeout(() => {
+        // 그 사이 이력에서 이미 골랐으면 다시 묻지 않는다
+        const m8 = getStampBoards().find(x => x.id === boardId)?.milestones?.find(x => x.at === 8);
+        if (m8 && !m8.rewardChoice) openMilestoneChoice(boardId);
+      }, 600);
     }
   });
 }
 
-// 4칸 달성 선택 모달
+// 8칸 달성 선택 모달
 let _pendingMilestoneBoard = null;
 function openMilestoneChoice(boardId) {
   _pendingMilestoneBoard = boardId;
   openPanel('overlay-milestone-choice');
 }
 // 이력 패널에서 호출 시: 이력 패널 먼저 닫고 마일스톤 선택 오픈
-function changeMilestone4(boardId, choice) {
+function changeMilestone8(boardId, choice) {
   const boards = getStampBoards();
   const board  = boards.find(b => b.id === boardId); if (!board) return;
-  const m4     = board.milestones?.find(m => m.at === 4 && m.choiceRequired); if (!m4) return;
-  m4.rewardChoice = choice;
-  m4.couponKey    = choice === 'polaroid' ? null : 'discount50';
-  m4.notified     = true;
+  const m8     = board.milestones?.find(m => m.at === 8); if (!m8) return;
+  m8.rewardChoice = choice;
   saveStampBoards(boards);
   renderStampHistoryPanel();
-  renderStampBoards(); renderCouponList(); renderHome();
-  showToast(choice === 'coupon' ? '🏷 할인권으로 변경됐습니다' : '📸 폴라로이드로 변경됐습니다');
+  renderStampBoards(); renderHome();
+  showToast(`${MS8_REWARDS[choice].icon} ${MS8_REWARDS[choice].label}(으)로 변경됐습니다`);
 }
 function openMilestoneChoiceFromHistory(boardId) {
   closePanel('overlay-stamp-history');
@@ -3862,15 +3908,13 @@ function chooseMilestoneReward(choice) {
   const boards = getStampBoards();
   const board  = boards.find(b => b.id === _pendingMilestoneBoard);
   if (!board) return;
-  const m4 = board.milestones?.find(m => m.at === 4 && m.choiceRequired);
-  if (!m4) return;
-  m4.notified     = true;
-  m4.rewardChoice = choice;
-  m4.couponKey    = (choice === 'polaroid') ? null : 'discount50'; // 변경 시 couponKey도 재설정
+  const m8 = board.milestones?.find(m => m.at === 8);
+  if (!m8) return;
+  m8.rewardChoice = choice;
   saveStampBoards(boards);
   closePanel('overlay-milestone-choice');
-  renderStampBoards(); renderCouponList(); renderHome();
-  showToast(choice==='coupon' ? '🏷 50% 할인권이 적립되었습니다!' : '📸 폴라로이드가 기록되었습니다!');
+  renderStampBoards(); renderHome();
+  showToast(`${MS8_REWARDS[choice].icon} ${MS8_REWARDS[choice].label}(으)로 기록됐습니다`);
   _pendingMilestoneBoard = null;
 }
 
@@ -3929,16 +3973,17 @@ function renderStampHistoryPanel() {
     const m = (board.milestones||[]).find(x=>x.at===at);
     if (!m || !m.notified) return '';
     // 달성한 모든 마일스톤에 divider 표시 (이끼숲은 4·6·8회 3단계)
-    return `<div class="milestone-divider"><span class="ms-label">${m.at}회 달성 · ${m.reward}</span></div>`;
+    return `<div class="milestone-divider"><span class="ms-label">${m.at}회 달성 · ${msRewardLabel(m)}</span></div>`;
   }
-  // 4칸 달성 항목 버튼 (해당 이력 항목 옆에 표시)
-  function m4Buttons() {
-    const m4 = (board.milestones||[]).find(x=>x.at===4);
-    if (!m4 || !m4.notified || !m4.choiceRequired) return '';
-    const isCoupon = m4.rewardChoice === 'coupon';
-    const isPolar  = m4.rewardChoice === 'polaroid';
-    return `<button style="padding:3px 7px;border-radius:6px;border:1.5px solid ${isCoupon?'var(--accent)':'var(--border)'};background:${isCoupon?'var(--accent)':'none'};color:${isCoupon?'#fff':'var(--text2)'};font-size:10px;cursor:pointer;font-family:inherit;" onclick="changeMilestone4('${boardId}','coupon')">🏷</button>
-    <button style="padding:3px 7px;border-radius:6px;border:1.5px solid ${isPolar?'var(--accent)':'var(--border)'};background:${isPolar?'var(--accent)':'none'};color:${isPolar?'#fff':'var(--text2)'};font-size:10px;cursor:pointer;font-family:inherit;" onclick="changeMilestone4('${boardId}','polaroid')">📸</button>`;
+  // 8칸 달성 항목 버튼 — 폴라로이드 / 미니 실황 OST 바꾸기 (해당 이력 항목 옆에 표시)
+  function m8Buttons() {
+    const m8 = (board.milestones||[]).find(x=>x.at===8);
+    if (!m8 || !m8.notified) return '';
+    const cur = m8.rewardChoice === 'ost' ? 'ost' : 'polaroid';
+    return ['polaroid','ost'].map(k => {
+      const on = cur === k;
+      return `<button style="padding:3px 7px;border-radius:6px;border:1.5px solid ${on?'var(--accent)':'var(--border)'};background:${on?'var(--accent)':'none'};color:${on?'#fff':'var(--text2)'};font-size:10px;cursor:pointer;font-family:inherit;" onclick="changeMilestone8('${boardId}','${k}')" title="${MS8_REWARDS[k].label}">${MS8_REWARDS[k].icon}</button>`;
+    }).join('');
   }
   el.innerHTML = '<div class="history-list">' + sortedH.map((h, i) => {
     const origIdx = board.history.indexOf(h);
@@ -3948,7 +3993,7 @@ function renderStampHistoryPanel() {
     const qty = h.qty||1;
     const qtyLabel = qty>1?` ×${qty}`:'';
     const msAfter = Object.entries(milestoneIdxMap).filter(([,idx])=>idx===i).map(([at])=>msDivider(Number(at))).join('');
-    const is4thMs = milestoneIdxMap[4] === i;
+    const is8thMs = milestoneIdxMap[8] === i;
     return `<div class="history-item" style="align-items:flex-start;">
       <div style="flex:1;min-width:0;">
         <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">${dateStr}</div>
@@ -3956,7 +4001,7 @@ function renderStampHistoryPanel() {
         ${h.comment?`<div style="font-size:11px;color:var(--text3);margin-top:1px;">${h.comment}</div>`:''}
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0;margin-left:8px;align-items:center;">
-        ${is4thMs ? m4Buttons() : ''}
+        ${is8thMs ? m8Buttons() : ''}
         ${!h.recordId?`<button class="btn-icon" style="font-size:12px;color:var(--text3);" onclick="editStampHistoryItem('${boardId}',${origIdx})">📝</button>`:''}
         <button class="btn-icon" style="font-size:12px;color:var(--danger);" onclick="deleteStampHistoryItemFromPanel('${boardId}',${origIdx})">✕</button>
       </div>

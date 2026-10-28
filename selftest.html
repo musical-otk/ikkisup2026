@@ -315,21 +315,71 @@ t('C. 쿠폰', '할인 목록이 이끼숲 9종 + 실물 할인권 2종', () => 
     ok(g('DISCOUNT_LABEL')[o], `DISCOUNT_LABEL 에 '${o}' 없음`));
 });
 
+// ── W. 더블 적립 위크 · 8회 택1 ───────────────────────
+function openFormWithBoard(date, boardId) {
+  W.openAddRecord(date);
+  W.document.getElementById('rec-stamp-board').value = boardId;
+  W.onRecStampBoardChange();
+}
+const formQty = () => W.document.querySelector('input[name="rec-stamp-qty"]:checked').value;
+t('W. 이벤트 적립', '더블 적립 위크 새 기록은 도장 2개가 기본', () => {
+  reset();
+  const id = newBoard(1);
+  openFormWithBoard('2026-10-22', id);
+  eq(formQty(), '2', '10/22');
+  openFormWithBoard('2026-11-03', id);
+  eq(formQty(), '1', '기간 밖 11/3');
+  W.closePanel('overlay-record');
+});
+t('W. 이벤트 적립', '기간 중 더블적립권 체크하면 3개, 풀면 2개', () => {
+  reset();
+  const id = newBoard(1);
+  openFormWithBoard('2026-10-31', id);
+  const ds = W.document.getElementById('rec-double-stamp-used');
+  ds.checked = true;  W.onRecDoubleStampChange(); eq(formQty(), '3', '체크');
+  ds.checked = false; W.onRecDoubleStampChange(); eq(formQty(), '2', '해제');
+  W.closePanel('overlay-record');
+});
+t('W. 이벤트 적립', '수량을 직접 고르면 날짜를 바꿔도 유지', () => {
+  reset();
+  const id = newBoard(1);
+  openFormWithBoard('2026-10-22', id);
+  W.document.querySelector('input[name="rec-stamp-qty"][value="1"]').checked = true;
+  W.eval('_recQtyTouched = true');
+  W.document.getElementById('rec-date').value = '2026-10-23';
+  W.applyDefaultStampQty();
+  eq(formQty(), '1');
+  W.closePanel('overlay-record');
+});
+t('W. 이벤트 적립', '8회 혜택 기본 폴라로이드 → OST 로 바꾸기', () => {
+  reset();
+  const id = newBoard(1);
+  fill(id, 8);
+  const m8 = () => boards().find(x => x.id === id).milestones.find(m => m.at === 8);
+  ok(m8().notified, '8회 달성');
+  eq(W.msRewardLabel(m8()), '📸 지정 폴라로이드', '안 고르면 폴라로이드');
+  W.changeMilestone8(id, 'ost');
+  eq(m8().rewardChoice, 'ost');
+  eq(W.msRewardLabel(m8()), '💿 미니 실황 OST');
+  ok(W.defaultMilestones().every(m => m.choiceRequired === undefined), '구 체계로 오인돼 초기화되면 안 됨');
+  W.closePanel('overlay-milestone-choice');
+});
+
 // ── D. 데이터 ─────────────────────────────────────────
-t('D. 데이터', '스케줄 39회차 로드', () => {
+t('D. 데이터', '스케줄 63회차 로드 (1·2차 오픈)', () => {
   const s = W.getSchedule();
-  eq(s.length, 39);
+  eq(s.length, 63);
   ok(s.every(x => g('ROLES').every(r => x[r.key] !== undefined)), '모든 회차에 5배역');
 });
-t('D. 데이터', '이벤트 3건 · X 링크 보유', () => {
+t('D. 데이터', '이벤트 6건 · X 링크 보유', () => {
   const e = W.getEvents();
-  eq(e.length, 3);
+  eq(e.length, 6);
   ok(e.every(x => /^https:\/\/x\.com\//.test(x.url || '')), '모든 이벤트에 X 링크');
 });
-t('D. 데이터', '공연 기간이 2026-10-01 ~ 11-01', () => {
+t('D. 데이터', '공연 기간이 2026-10-01 ~ 11-22', () => {
   const d = W.getSchedule().map(s => s.date).sort();
   eq(d[0], '2026-10-01');
-  eq(d[d.length - 1], '2026-11-01');
+  eq(d[d.length - 1], '2026-11-22');
 });
 t('D. 데이터', '달력 기준월이 2026년 10월', () => {
   W.initCal();
