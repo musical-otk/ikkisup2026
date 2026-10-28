@@ -365,6 +365,23 @@ t('W. 이벤트 적립', '8회 혜택 기본 폴라로이드 → OST 로 바꾸�
   W.closePanel('overlay-milestone-choice');
 });
 
+// ── T. 양도 정보 복사 ─────────────────────────────────
+const TR = { date:'2026-11-07', time:'15:00', marco:'송유택', soma:'전혜주', yuo:'이주순', uiju:'정다예', eunhui:'한비',
+             seatFloor:'1층', seatZone:'F', seatNumber:12, price:53900, discountType:'재관람 할인' };
+t('T. 양도 복사', '양도글 형식 (제목·날짜·캐스트·좌석 범위·할인 가격)', () => {
+  eq(W.buildTransferText(TR),
+    '뮤지컬 이끼숲 양도\n\n11/7(토) 15:00\n송유택 전혜주 이주순 정다예 한비\n\n1층 F열 11-13 중 한자리\n재관람 할인 53,900원');
+});
+t('T. 양도 복사', '좌석 범위는 블록 끝을 넘지 않음', () => {
+  const r = W.transferSeatRange('1층', 'A', 13);   // A열 왼쪽 블록 3~13
+  eq(r, [11, 13]);
+  eq(W.transferSeatRange('1층', 'A', 14), [14, 16], '오른쪽 블록 시작');
+});
+t('T. 양도 복사', '좌석·가격 없으면 그 줄을 뺌', () => {
+  const txt = W.buildTransferText({ date:'2026-11-07', time:'15:00', marco:'송유택' });
+  eq(txt, '뮤지컬 이끼숲 양도\n\n11/7(토) 15:00\n송유택');
+});
+
 // ── D. 데이터 ─────────────────────────────────────────
 t('D. 데이터', '스케줄 63회차 로드 (1·2차 오픈)', () => {
   const s = W.getSchedule();

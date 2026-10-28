@@ -783,7 +783,8 @@
       <button class="btn-icon" onclick="closePanel('overlay-detail')">✕</button>
     </div>
     <div id="detail-content"></div>
-    <div style="display:flex;gap:10px;margin-top:16px;">
+    <button class="btn btn-outline" id="detail-transfer-copy" style="width:100%;margin-top:16px;" onclick="copyTransferInfo()">📋 양도 정보 복사</button>
+    <div style="display:flex;gap:10px;margin-top:10px;">
       <button class="btn btn-outline" style="flex:1;" onclick="editCurrentRecord()">수정</button>
       <button class="btn btn-danger btn-sm" onclick="deleteCurrentRecord()">삭제</button>
     </div>
@@ -1065,6 +1066,7 @@
 // CONFIG
 // ============================================================
 const APP_PREFIX = 'ikkisup_';
+const SHOW_TITLE = '이끼숲';   // 양도글 제목 등에 쓰는 작품명
 
 // ============================================================
 // PHOTO — IndexedDB
@@ -2152,6 +2154,61 @@ function saveRecord() {
 }
 
 // 캐스팅 요약 문자열 (마르코·소마 위주)
+// ── 양도글 복사 ──
+// X 양도글에서 흔히 쓰는 순서: 제목 / 날짜 시간 / 캐스트 / 좌석(범위) / 할인 가격
+// 좌석은 정확한 번호 대신 앞뒤 1석씩 묶어 "11-13 중 한자리" 로 쓴다 (같은 블록 안에서만)
+function transferSeatRange(floor, row, num) {
+  const def = SEAT_PLAN[floor]?.def?.[row];
+  const block = def && [def.l, def.m, def.r].find(b => b && num >= b[0] && num <= b[1]);
+  if (!block) return null;
+  const size = Math.min(3, block[1] - block[0] + 1);
+  let start = Math.max(block[0], num - 1);
+  start = Math.min(start, block[1] - size + 1);
+  return [start, start + size - 1];
+}
+function buildTransferText(r) {
+  const dow = ['일','월','화','수','목','금','토'];
+  const d   = new Date(r.date + 'T00:00:00');
+  const lines = [`뮤지컬 ${SHOW_TITLE} 양도`, ''];
+  lines.push(`${parseInt(r.date.slice(5,7))}/${parseInt(r.date.slice(8,10))}(${dow[d.getDay()]}) ${r.time || ''}`.trim());
+  const cast = ROLES.map(role => r[role.key]).filter(Boolean).join(' ');
+  if (cast) lines.push(cast);
+  lines.push('');
+  if (r.seatZone) {
+    let seat = (r.seatFloor ? r.seatFloor + ' ' : '') + r.seatZone + '열';
+    const num = parseInt(r.seatNumber);
+    if (num) {
+      const rg = transferSeatRange(r.seatFloor, r.seatZone, num);
+      seat += rg && rg[0] !== rg[1] ? ` ${rg[0]}-${rg[1]} 중 한자리` : ` ${num}번`;
+    }
+    lines.push(seat);
+  }
+  const price = r.price != null ? `${Number(r.price).toLocaleString()}원` : '';
+  const priceLine = [r.discountType || '', price].filter(Boolean).join(' ');
+  if (priceLine) lines.push(priceLine);
+  return lines.join('\n').replace(/\n+$/, '');
+}
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text);
+  // 구형 브라우저·http 환경 대비
+  return new Promise((resolve, reject) => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:-1000px;opacity:0;';
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    ok ? resolve() : reject(new Error('copy failed'));
+  });
+}
+function copyTransferInfo() {
+  const r = getRecords().find(x => x.id === currentDetailId);
+  if (!r) return;
+  copyText(buildTransferText(r))
+    .then(() => showToast('📋 양도 정보가 복사됐습니다'))
+    .catch(() => showToast('복사하지 못했습니다'));
+}
+
 function buildCastSummary(r) {
   return ROLES.map(role => r[role.key]).filter(Boolean).slice(0, 2).join(' · ') || '관람';
 }
@@ -2226,6 +2283,8 @@ function openDetail(id) {
   // 사진 자리 placeholder
   html += `<div id="detail-photo-area"></div>`;
   document.getElementById('detail-content').innerHTML = html;
+  const copyBtn = document.getElementById('detail-transfer-copy');
+  if (copyBtn) copyBtn.style.display = r.date >= localDate() ? '' : 'none';
   openPanel('overlay-detail');
   // 사진 비동기 로드
   dbGetPhotos(id).then(photos => {
