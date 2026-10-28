@@ -2283,8 +2283,6 @@ function openDetail(id) {
   // 사진 자리 placeholder
   html += `<div id="detail-photo-area"></div>`;
   document.getElementById('detail-content').innerHTML = html;
-  const copyBtn = document.getElementById('detail-transfer-copy');
-  if (copyBtn) copyBtn.style.display = r.date >= localDate() ? '' : 'none';
   openPanel('overlay-detail');
   // 사진 비동기 로드
   dbGetPhotos(id).then(photos => {
