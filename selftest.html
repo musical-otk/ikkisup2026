@@ -306,7 +306,8 @@ t('C. 쿠폰', 'C2b — 보유분이 있으면 차액 체크 시 차감 안 됨'
 t('C. 쿠폰', '할인 목록이 이끼숲 9종 + 실물 할인권 2종', () => {
   const opts = [...W.document.getElementById('rec-discount-type').options]
     .map(o => o.value).filter(Boolean);
-  ok(opts.includes('1차 조기예매 할인'), '1차 조기예매 할인 누락');
+  ok(opts.includes('조기예매 할인'), '조기예매 할인 누락');
+  ok(!opts.includes('1차 조기예매 할인'), '차수 붙은 옛 이름 잔존');
   ok(opts.includes('청소년 할인'), '청소년 할인 누락');
   ok(opts.includes('도서 소지 할인'), '도서 소지 할인 누락');
   ok(!opts.includes('마티네 할인'), '이끼숲에 없는 마티네 할인 잔존');
@@ -382,15 +383,23 @@ t('T. 양도 복사', '좌석·가격 없으면 그 줄을 뺌', () => {
   eq(txt, '뮤지컬 이끼숲 양도\n\n11/7(토) 15:00\n송유택');
 });
 
+t('C. 쿠폰', "옛 이름 '1차 조기예매 할인' 기록이 '조기예매 할인'으로 읽힘", () => {
+  reset();
+  W.saveRecords([{ id: W.uuid(), date: '2026-10-10', time: '19:00', discountType: '1차 조기예매 할인', price: 50050 }]);
+  eq(W.getRecords()[0].discountType, '조기예매 할인', '읽을 때');
+  W.migrateData();
+  eq(JSON.parse(W.localStorage.getItem('ikkisup_records'))[0].discountType, '조기예매 할인', '저장소에도 반영');
+});
+
 // ── D. 데이터 ─────────────────────────────────────────
 t('D. 데이터', '스케줄 87회차 로드 (전 회차)', () => {
   const s = W.getSchedule();
   eq(s.length, 87);
   ok(s.every(x => g('ROLES').every(r => x[r.key] !== undefined)), '모든 회차에 5배역');
 });
-t('D. 데이터', '이벤트 6건 · X 링크 보유', () => {
+t('D. 데이터', '이벤트 9건 · X 링크 보유', () => {
   const e = W.getEvents();
-  eq(e.length, 6);
+  eq(e.length, 9);
   ok(e.every(x => /^https:\/\/x\.com\//.test(x.url || '')), '모든 이벤트에 X 링크');
 });
 t('D. 데이터', '공연 기간이 2026-10-01 ~ 12-13', () => {
