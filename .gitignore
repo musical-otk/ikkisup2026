@@ -5,3 +5,5 @@ desktop.ini
 
 # 작업 백업
 *.bak
+_recap_work/
+_recap_*.html
