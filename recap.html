@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌿 이끼숲 정산판</title>
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png?v=2">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=2">
+<meta name="theme-color" content="#1A6B72">
+<style>
+  /* 페이지(조작부) — 앱과 같은 팔레트 */
+  :root{
+    --bg:#F3F6F9;--bg2:#FFFFFF;--bg3:#EAEEF2;--border:#DCE3EA;
+    --text:#1B2733;--text2:#57677A;--text3:#8A97A6;--accent:#1A6B72;
+    /* 정산판 카드 테마 — 작품마다 여기만 바꾼다 */
+    --ac:#1A6B72;--ac-soft:#CFE3E1;--track:#D5E7E5;--grad:#DCEDEB;--card:#FAFCFC;
+    --s0:#E5EEED;--s1:#BFE0DE;--s2:#8CC7C6;--s3:#57A9AC;--s4:#2E8489;--s5:#12525A;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Apple SD Gothic Neo','Pretendard','Malgun Gothic',sans-serif;background:var(--bg);color:var(--text);}
+  .bar{position:sticky;top:0;z-index:5;background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 14px;
+       display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;}
+  .bar a{color:var(--text2);text-decoration:none;font-size:13px;margin-right:auto;}
+  .save{border:0;background:var(--accent);color:#fff;font-weight:700;border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;}
+  .save:disabled{opacity:.5;}
+  .stage{padding:16px;}
+  /* 카드는 1080px 그대로 두고 축소해서 보여준다. 프레임이 축소된 크기를 차지해야 페이지가 옆으로 넓어지지 않는다 */
+  .frame{position:relative;margin:0 auto;overflow:hidden;min-height:120px;}
+  .scaler{position:absolute;left:0;top:0;transform-origin:top left;}
+  .msg{text-align:center;color:var(--text3);font-size:13px;padding:40px 16px;}
+
+  /* ── 정산판 카드 (이미지로 저장되는 부분) ── */
+  #card{width:1080px;background:var(--card);color:#13202C;padding:64px 64px 48px;position:relative;overflow:hidden;
+        font-family:'Apple SD Gothic Neo','Pretendard','Malgun Gothic',sans-serif;}
+  #card::before{content:'';position:absolute;inset:0 0 auto 0;height:420px;
+        background:linear-gradient(180deg,var(--grad) 0%,transparent 100%);}
+  #card > *{position:relative;}
+  .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:44px;}
+  .hd .kicker{font-size:20px;letter-spacing:6px;color:var(--ac);font-weight:700;}
+  .hd h1{font-size:76px;line-height:1.05;font-weight:800;letter-spacing:-2px;margin:8px 0 14px;}
+  .hd .meta{font-size:21px;color:#57677A;line-height:1.6;}
+  .ring{width:236px;height:236px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ring-in{width:196px;height:196px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .ring-in .lb{font-size:17px;letter-spacing:4px;color:#57677A;font-weight:700;}
+  .ring-in .n{font-size:84px;font-weight:800;line-height:1;color:var(--ac);letter-spacing:-3px;margin:6px 0 2px;}
+  .ring-in .of{font-size:21px;color:#8A97A6;}
+
+  .roles{display:flex;flex-wrap:wrap;gap:34px 40px;margin-bottom:46px;}
+  .role h2{font-size:22px;font-weight:800;color:var(--ac);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+  .role h2::after{content:'';height:2px;flex:1;background:var(--ac-soft);min-width:20px;}
+  .tiles{display:flex;gap:14px;}
+  .tile{width:136px;}
+  .ph{width:136px;height:181px;border-radius:16px;overflow:hidden;background:#EAEEF2;position:relative;}
+  .ph img{width:100%;height:100%;object-fit:cover;display:block;}
+  .nm{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;}
+  .nm b{font-size:21px;font-weight:700;}
+  .nm span{font-size:17px;color:#8A97A6;white-space:nowrap;}
+  .nm em{font-style:normal;font-size:24px;font-weight:800;color:var(--ac);}
+
+  .floor .fl{font-size:22px;font-weight:800;letter-spacing:3px;color:var(--ac);margin-bottom:12px;}
+  .floor .hm-row{display:flex;align-items:center;margin-bottom:3px;}
+  .floor .hm-row-gap{height:14px;}
+  .floor .hm-label{font-size:13px;color:#8A97A6;text-align:center;font-weight:700;flex-shrink:0;}
+  .floor .hm-cell{background:var(--s0) !important;border:0 !important;}
+  .floor .hm-cell.v1{background:var(--s1) !important;} .floor .hm-cell.v2{background:var(--s2) !important;}
+  .floor .hm-cell.v3{background:var(--s3) !important;} .floor .hm-cell.v4{background:var(--s4) !important;}
+  .floor .hm-cell.v5{background:var(--s5) !important;}
+  .floor .void{visibility:hidden;}
+  .floors{display:flex;flex-direction:column;gap:26px;}
+  .legend{font-size:16px;color:#57677A;text-align:right;}
+  .legend > div:first-child{display:flex;gap:14px;flex-wrap:wrap;justify-content:flex-end;}
+  .legend i{display:inline-block;width:18px;height:18px;border-radius:4px;vertical-align:-3px;margin-right:5px;}
+  .ft{margin-top:40px;padding-top:18px;border-top:1px solid #DCE3EA;display:flex;justify-content:space-between;font-size:16px;color:#8A97A6;}
+</style>
+</head>
+<body>
+<div class="bar">
+  <a href="./">‹ 앱으로</a>
+  <button class="save" id="btn-save" disabled>이미지 저장</button>
+</div>
+<div class="stage"><div class="frame" id="frame"><div class="msg" id="msg">기록을 불러오는 중…</div><div class="scaler" id="scaler"></div></div></div>
+
+<!-- 앱을 숨겨 띄워 배역·스케줄·기록·좌석 배치를 그대로 읽는다 (좌석도 규칙을 두 벌 두지 않기 위해) -->
+<iframe id="app" src="./index.html" style="position:absolute;width:480px;height:10px;left:-9999px;top:0;border:0;" tabindex="-1" aria-hidden="true"></iframe>
+
+<script>
+// ── 작품 설정 (다른 작품에 이식할 때 여기만 바꾼다) ──
+const SHOW = {
+  prefix: 'ikkisup_',
+  kicker: 'MUSICAL · THE MOSS FOREST',
+  title:  '이끼숲',
+  period: '2026.10.01 — 12.13',
+  venue:  '백암아트홀',
+  file:   '이끼숲_정산판',
+  photoDir: 'recap/profile',   // <배우>.jpg — 공식 계정 사진 (게시물 본문 배우 이름으로 매칭)
+};
+
+
+let W = null, seatTemplates = [];
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+
+// 정산에 넣을 기록 — 막공까지 예매한 회차 전부 (양도·미정은 뺀다)
+function countedRecords() {
+  return W.getRecords().filter(r =>
+    r.date && !W.isTransferred(r) && r.isBooked !== false);
+}
+
+// 앱의 히트맵을 빌려 배치(빈칸·통로 포함)를 얻는다. 개수는 여기서 다시 칠한다.
+// 앱마다 그리는 방식이 둘이다 — 층을 하나씩 바꿔 그리거나(currentHmFloor), 모든 층을 한 번에 그리고 층 제목으로 나누거나.
+function captureSeatTemplates() {
+  const floors = Object.keys(W.eval('SEAT_PLAN'));
+  const hasFloorState = W.eval("typeof currentHmFloor !== 'undefined'");
+  const hm = () => W.document.getElementById('heatmap');
+  const strip = html => { const d = document.createElement('div'); d.innerHTML = html;
+    d.querySelectorAll('.hm-floor-label, .hm-floor-gap').forEach(n => n.remove()); return d.innerHTML; };
+  // 빈 기록으로 그려 배치만 얻는다. 저장소는 건드리지 않고 읽는 함수만 잠깐 바꾼다
+  // (저장소를 비웠다 되돌리는 방식은 도중에 페이지가 닫히면 기록이 날아간다)
+  const origGet = W.getRecords;
+  W.getRecords = () => [];
+  try {
+    if (hasFloorState) return floors.map(f => {
+      W.eval(`currentHmFloor = ${JSON.stringify(f)}`);
+      W.renderHeatmap();
+      return { floor: f, html: strip(hm().innerHTML) };
+    });
+    W.renderHeatmap();
+    const labels = hm().querySelectorAll('.hm-floor-label');
+    if (floors.length > 1 && labels.length === floors.length) {
+      const parts = floors.map(() => []); let i = -1;
+      [...hm().children].forEach(n => {
+        if (n.classList.contains('hm-floor-label')) { i++; return; }
+        if (i >= 0 && !n.classList.contains('hm-floor-gap')) parts[i].push(n.outerHTML);
+      });
+      return floors.map((f, k) => ({ floor: f, html: parts[k].join('') }));
+    }
+    return [{ floor: floors[0], html: strip(hm().innerHTML) }];
+  } finally {
+    W.getRecords = origGet;
+  }
+}
+const SCALE = 1.75;   // 앱 히트맵 칸(11px) → 정산판 칸
+function seatHtml(tpl, seatCount) {
+  const box = document.createElement('div');
+  box.innerHTML = tpl.html.replace(/(\d+(?:\.\d+)?)px/g, (_, n) => (parseFloat(n) * SCALE) + 'px');
+  box.querySelectorAll('.hm-label').forEach(el => { el.style.width = (14 * SCALE) + 'px'; });
+  box.querySelectorAll('.hm-row > div').forEach(el => {
+    if (el.classList.contains('hm-label') || el.classList.contains('hm-cell')) return;
+    const t = el.getAttribute('title') || '';
+    const m = t.match(/([A-Z])열\s*(\d+)번/);
+    if (m && /보류|미판매|비판매/.test(t)) {                       // 판매보류석 — 테두리만
+      el.style.background = 'transparent'; el.style.border = '2px solid #CBD5DE'; el.style.opacity = '1';
+    } else if (/dashed/.test(el.getAttribute('style') || '')) {
+      el.classList.add('void');                             // 좌석 없는 자리
+    }
+  });
+  box.querySelectorAll('.hm-cell').forEach(el => {
+    const m = (el.getAttribute('title') || '').match(/([A-Z])열\s*(\d+)번/);
+    el.className = 'hm-cell';
+    el.removeAttribute('title');
+    if (!m) return;
+    const c = seatCount[`${tpl.floor}-${m[1]}-${m[2]}`] || 0;
+    if (c) el.classList.add('v' + Math.min(c, 5));
+  });
+  return box.innerHTML;
+}
+
+function render() {
+  const roles = W.eval('ROLES');
+  const schedule = W.getSchedule();
+  const recs = countedRecords();
+  const md = d => `${parseInt(d.slice(5, 7))}.${parseInt(d.slice(8, 10))}`;
+
+  const seatCount = {};
+  recs.forEach(r => { if (r.seatFloor && r.seatZone && r.seatNumber) {
+    const k = `${r.seatFloor}-${r.seatZone}-${r.seatNumber}`; seatCount[k] = (seatCount[k] || 0) + 1; } });
+  const seatsVisited = Object.keys(seatCount).length;
+  const dates = recs.map(r => r.date).sort();
+
+  const total = recs.length, all = schedule.length;
+  const pct = all ? Math.min(100, total / all * 100) : 0;
+
+  const rolesHtml = roles.map(role => {
+    const counts = role.actors.map(a => recs.filter(r => r[role.key] === a).length);
+    return `<div class="role"><h2>${esc(role.label)}</h2><div class="tiles">${role.actors.map((a, i) => {
+      const mine = counts[i], of = schedule.filter(s => s[role.key] === a).length;
+      return `<div class="tile"><div class="ph"><img src="${SHOW.photoDir}/${encodeURIComponent(a)}.jpg" alt=""></div>
+              <div class="nm"><b>${esc(a)}</b><span><em>${mine || ''}</em> / ${of}</span></div></div>`;
+    }).join('')}</div></div>`;
+  }).join('');
+
+  const legend = [1, 2, 3, 4, 5].map(n => `<span><i style="background:var(--s${n})"></i>${n}회${n === 5 ? '+' : ''}</span>`).join('');
+
+  $('scaler').innerHTML = `<div id="card">
+    <div class="hd">
+      <div>
+        <div class="kicker">${esc(SHOW.kicker)}</div>
+        <h1>${esc(SHOW.title)}</h1>
+        <div class="meta">${esc(SHOW.period)} · ${esc(SHOW.venue)}<br>
+          ${dates.length ? `첫 관람 ${md(dates[0])} · 마지막 ${md(dates[dates.length - 1])} · 좌석 ${seatsVisited}곳` : '아직 정산할 관람 기록이 없어요'}</div>
+      </div>
+      <div class="ring" style="background:conic-gradient(var(--ac) ${pct}%, var(--track) 0)">
+        <div class="ring-in"><div class="lb">TOTAL</div><div class="n">${total}</div><div class="of">/ ${all}회</div></div>
+      </div>
+    </div>
+    <!-- 배역과 좌석도를 한 흐름에 둔다 — 배우 수가 적은 배역 옆 빈자리를 좌석도 묶음(층을 위아래로)이 채운다 -->
+    <div class="roles">${rolesHtml}
+      <div class="floors">${seatTemplates.map(t => `<div class="floor"><div class="fl">${esc(t.floor.replace('층', 'F'))}</div>${seatHtml(t, seatCount)}</div>`).join('')}
+        <div class="legend"><div>${legend}</div></div>
+      </div></div>
+    <div class="ft"><span>${esc(SHOW.title)} 정산판</span><span>관극 다이어리</span></div>
+  </div>`;
+  fit();
+}
+
+// 화면 폭에 맞춰 축소해서 보여준다 (저장은 원래 크기 1080px)
+function fit() {
+  const card = $('card'); if (!card) return;
+  $('msg').style.display = 'none';
+  const k = Math.min(1, (document.documentElement.clientWidth - 32) / card.offsetWidth);
+  $('scaler').style.transform = `scale(${k})`;
+  $('frame').style.width  = (card.offsetWidth  * k) + 'px';
+  $('frame').style.height = (card.offsetHeight * k) + 'px';
+}
+window.addEventListener('resize', fit);
+
+function loadScript(src) {
+  return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
+}
+async function saveImage() {
+  const btn = $('btn-save'); btn.disabled = true; btn.textContent = '만드는 중…';
+  try {
+    if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    const sc = $('scaler'), prev = sc.style.transform;
+    sc.style.transform = 'none';                                  // 원래 크기로 찍는다
+    const canvas = await html2canvas($('card'), { scale: 1, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--card').trim(), useCORS: true });
+    sc.style.transform = prev;
+    const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    const name = `${SHOW.file}_${W.localDate()}.png`;
+    const file = new File([blob], name, { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file] }).catch(() => {});  // 휴대폰 — 사진 앱/X 로 바로
+    } else {
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
+  } catch (e) {
+    alert('이미지를 만들지 못했습니다. 인터넷 연결을 확인해 주세요.');
+  } finally { btn.disabled = false; btn.textContent = '이미지 저장'; }
+}
+
+// ── 시작 ──
+$('btn-save').onclick = saveImage;
+
+$('app').addEventListener('load', () => {
+  W = $('app').contentWindow;
+  W.confirm = () => false; W.alert = () => {};
+  const start = Date.now();
+  (function wait() {
+    const ready = W.getSchedule && W.getSchedule().length > 0;
+    if (!ready && Date.now() - start < 8000) return setTimeout(wait, 150);
+    if (!ready) { $('msg').textContent = '스케줄을 불러오지 못했습니다. 잠시 후 다시 열어 주세요.'; return; }
+    seatTemplates = captureSeatTemplates();
+    render();
+    $('btn-save').disabled = false;
+  })();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "prefix": "ikkisup_",
+  "icon": "🌿",
+  "kicker": "MUSICAL · THE MOSS FOREST",
+  "title": "이끼숲",
+  "period": "2026.10.01 — 12.13",
+  "venue": "백암아트홀",
+  "theme": {
+    "ac": "#1A6B72", "ac_soft": "#CFE3E1", "track": "#D5E7E5", "grad": "#DCEDEB", "card": "#FAFCFC",
+    "seats": ["#E5EEED", "#BFE0DE", "#8CC7C6", "#57A9AC", "#2E8489", "#12525A"]
+  }
+}
