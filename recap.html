@@ -139,7 +139,7 @@ function captureSeatTemplates() {
     W.getRecords = origGet;
   }
 }
-const SCALE = 1.75;   // 앱 히트맵 칸(11px) → 정산판 칸
+const SCALE = 1.35;   // 앱 히트맵 칸(11px) → 정산판 칸. 좌석이 많은 극장은 줄여 배역 옆 빈자리에 들어가게
 function seatHtml(tpl, seatCount) {
   const box = document.createElement('div');
   box.innerHTML = tpl.html.replace(/(\d+(?:\.\d+)?)px/g, (_, n) => (parseFloat(n) * SCALE) + 'px');
