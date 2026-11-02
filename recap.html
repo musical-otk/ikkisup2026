@@ -23,6 +23,8 @@
   .bar a{color:var(--text2);text-decoration:none;font-size:13px;margin-right:auto;}
   .save{border:0;background:var(--accent);color:#fff;font-weight:700;border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit;}
   .save:disabled{opacity:.5;}
+  .save.ghost{background:var(--bg3);color:var(--text);}
+  .save[hidden]{display:none;}
   .stage{padding:16px;}
   /* 카드는 1080px 그대로 두고 축소해서 보여준다. 프레임이 축소된 크기를 차지해야 페이지가 옆으로 넓어지지 않는다 */
   .frame{position:relative;margin:0 auto;overflow:hidden;min-height:120px;}
@@ -76,6 +78,7 @@
 <body>
 <div class="bar">
   <a href="./">‹ 앱으로</a>
+  <button class="save ghost" id="btn-share" hidden disabled>공유</button>
   <button class="save" id="btn-save" disabled>이미지 저장</button>
 </div>
 <div class="stage"><div class="frame" id="frame"><div class="msg" id="msg">기록을 불러오는 중…</div><div class="scaler" id="scaler"></div></div></div>
@@ -227,30 +230,49 @@ window.addEventListener('resize', fit);
 function loadScript(src) {
   return new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); });
 }
-async function saveImage() {
-  const btn = $('btn-save'); btn.disabled = true; btn.textContent = '만드는 중…';
+// 카드를 원래 크기(1080px)로 찍어 PNG 로 만든다
+async function makeImage() {
+  if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+  const sc = $('scaler'), prev = sc.style.transform;
+  sc.style.transform = 'none';
   try {
-    if (!window.html2canvas) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-    const sc = $('scaler'), prev = sc.style.transform;
-    sc.style.transform = 'none';                                  // 원래 크기로 찍는다
     const canvas = await html2canvas($('card'), { scale: 1, backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--card').trim(), useCORS: true });
-    sc.style.transform = prev;
     const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
-    const name = `${SHOW.file}_${W.localDate()}.png`;
-    const file = new File([blob], name, { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file] }).catch(() => {});  // 휴대폰 — 사진 앱/X 로 바로
-    } else {
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    }
-  } catch (e) {
-    alert('이미지를 만들지 못했습니다. 인터넷 연결을 확인해 주세요.');
-  } finally { btn.disabled = false; btn.textContent = '이미지 저장'; }
+    return { blob, name: `${SHOW.file}_${W.localDate()}.png` };
+  } finally { sc.style.transform = prev; }
 }
+// 버튼을 잠그고 '만드는 중…' 을 보여 주는 공통 처리
+async function busy(btn, job) {
+  const label = btn.textContent; btn.disabled = true; btn.textContent = '만드는 중…';
+  try { await job(); }
+  catch (e) { alert('이미지를 만들지 못했습니다. 인터넷 연결을 확인해 주세요.'); }
+  finally { btn.disabled = false; btn.textContent = label; }
+}
+// 저장 — 파일로 내려받는다 (PC 는 다운로드 폴더, 아이폰은 '파일' 앱, 안드로이드는 다운로드)
+function saveImage() {
+  return busy($('btn-save'), async () => {
+    const { blob, name } = await makeImage();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+}
+// 공유 — 휴대폰 공유창 (사진 앱에 저장·X 로 바로 보내기). 지원하는 브라우저에서만 버튼이 보인다
+function shareImage() {
+  return busy($('btn-share'), async () => {
+    const { blob, name } = await makeImage();
+    await navigator.share({ files: [new File([blob], name, { type: 'image/png' })] }).catch(() => {});
+  });
+}
+const canShareFiles = (() => {
+  try { return !!(navigator.canShare && navigator.canShare({ files: [new File([''], 'x.png', { type: 'image/png' })] })); }
+  catch (e) { return false; }
+})();
 
 // ── 시작 ──
 $('btn-save').onclick = saveImage;
+$('btn-share').onclick = shareImage;
+$('btn-share').hidden = !canShareFiles;
 
 $('app').addEventListener('load', () => {
   W = $('app').contentWindow;
@@ -263,6 +285,7 @@ $('app').addEventListener('load', () => {
     seatTemplates = captureSeatTemplates();
     render();
     $('btn-save').disabled = false;
+    $('btn-share').disabled = false;
   })();
 });
 </script>
