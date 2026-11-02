@@ -80,6 +80,17 @@ frame.addEventListener('load', () => {
     seed(W);
 
     // 상세 패널 (미니 좌석도 확인용)
+    // 도장 카드 변경 모드 (이력 패널에서 2건 고른 상태)
+    if (TAB === 'stampmove') {
+      const bs = W.getStampBoards();
+      bs.push({ id: 'b2', name: '2', totalSlots: 8, milestones: W.defaultMilestones(), currentCount: 0, history: [] });
+      W.saveStampBoards(bs);
+      const ct = W.document.querySelector(`.tab-btn[onclick*="'coupon'"]`); if (ct) W.switchTab('coupon', ct);
+      W.openStampHistory(bs[0].id); W.toggleStampMoveMode();
+      const h = W.getStampBoards()[0].history;
+      W.toggleStampMoveSel(h.length - 1, true); W.toggleStampMoveSel(h.length - 2, true);
+      document.title = 'SHOT stampmove'; return;
+    }
     if (TAB === 'detail') {
       const home = W.document.querySelector(`.tab-btn[onclick*="'home'"]`);
       if (home) W.switchTab('home', home);
