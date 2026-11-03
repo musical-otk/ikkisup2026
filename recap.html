@@ -35,13 +35,15 @@
   #card{width:1080px;background:var(--card);color:#13202C;padding:64px 64px 48px;position:relative;overflow:hidden;
         font-family:'Apple SD Gothic Neo','Pretendard','Malgun Gothic',sans-serif;}
   #card::before{content:'';position:absolute;inset:0 0 auto 0;height:420px;
-        background:linear-gradient(180deg,var(--grad) 0%,transparent 100%);}
+        background:linear-gradient(180deg,var(--grad) 0%,var(--card) 100%);}   /* transparent 로 두면 저장 이미지에서 회색이 섞인다 */
   #card > *{position:relative;}
   .hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:44px;}
   .hd .kicker{font-size:20px;letter-spacing:6px;color:var(--ac);font-weight:700;}
   .hd h1{font-size:76px;line-height:1.05;font-weight:800;letter-spacing:-2px;margin:8px 0 14px;}
   .hd .meta{font-size:21px;color:#57677A;line-height:1.6;}
-  .ring{width:236px;height:236px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .ring{width:236px;height:236px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;}
+  .ring canvas{position:absolute;inset:0;width:236px;height:236px;}
+  .ring-in{position:relative;}
   .ring-in{width:196px;height:196px;border-radius:50%;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;}
   .ring-in .lb{font-size:17px;letter-spacing:4px;color:#57677A;font-weight:700;}
   .ring-in .n{font-size:84px;font-weight:800;line-height:1;color:var(--ac);letter-spacing:-3px;margin:6px 0 2px;}
@@ -202,7 +204,7 @@ function render() {
         <div class="meta">${esc(SHOW.period)} · ${esc(SHOW.venue)}<br>
           ${dates.length ? `첫 관람 ${md(dates[0])} · 마지막 ${md(dates[dates.length - 1])} · 좌석 ${seatsVisited}곳` : '아직 정산할 관람 기록이 없어요'}</div>
       </div>
-      <div class="ring" style="background:conic-gradient(var(--ac) ${pct}%, var(--track) 0)">
+      <div class="ring"><canvas id="ring-cv" width="472" height="472"></canvas>
         <div class="ring-in"><div class="lb">TOTAL</div><div class="n">${total}</div><div class="of">/ ${all}회</div></div>
       </div>
     </div>
@@ -213,7 +215,22 @@ function render() {
       </div></div>
     <div class="ft"><span>${esc(SHOW.title)} 정산판</span><span>관극 다이어리</span></div>
   </div>`;
+  drawRing(pct);
   fit();
+}
+
+// 진행 링 — 저장 이미지(html2canvas)가 conic-gradient 를 못 그려서 canvas 로 그린다 (canvas 는 그대로 복사된다)
+function drawRing(pct) {
+  const cv = $('ring-cv'); if (!cv) return;
+  const g = cv.getContext('2d'), css = getComputedStyle(document.documentElement);
+  const c = cv.width / 2, r = cv.width / 2;
+  g.clearRect(0, 0, cv.width, cv.height);
+  g.beginPath(); g.arc(c, c, r, 0, Math.PI * 2); g.fillStyle = css.getPropertyValue('--track').trim(); g.fill();
+  if (pct > 0) {
+    g.beginPath(); g.moveTo(c, c);
+    g.arc(c, c, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct / 100);
+    g.closePath(); g.fillStyle = css.getPropertyValue('--ac').trim(); g.fill();
+  }
 }
 
 // 화면 폭에 맞춰 축소해서 보여준다 (저장은 원래 크기 1080px)
