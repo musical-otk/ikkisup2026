@@ -154,7 +154,7 @@ function seatHtml(tpl, seatCount) {
     const t = el.getAttribute('title') || '';
     const m = t.match(/([A-Z])열\s*(\d+)번/);
     if (m && /보류|미판매|비판매/.test(t)) {                       // 판매보류석 — 테두리만
-      el.style.background = 'transparent'; el.style.border = '2px solid #CBD5DE'; el.style.opacity = '1';
+      el.style.background = 'transparent'; el.style.border = '2px solid var(--ac-soft)';   // 판매보류석 — 작품 테마색 (고정색은 다른 작품에서 튀었다) el.style.opacity = '1';
     } else if (/dashed/.test(el.getAttribute('style') || '')) {
       el.classList.add('void');                             // 좌석 없는 자리
     }
