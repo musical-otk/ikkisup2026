@@ -337,14 +337,13 @@ t('C. 쿠폰', 'C2b — 보유분이 있으면 차액 체크 시 차감 안 됨'
   eq(cnt('discount50'), 1, '차액 지불이므로 보유분 유지');
 });
 
-t('C. 쿠폰', '할인 목록이 이끼숲 9종 + 실물 할인권 2종 + 당일 현장 할인 + 타임세일', () => {
+t('C. 쿠폰', '할인 목록이 이끼숲 9종 + 실물 할인권 2종 + 타임세일', () => {
   const opts = [...W.document.getElementById('rec-discount-type').options]
     .map(o => o.value).filter(Boolean);
   ok(opts.includes('조기예매 할인'), '조기예매 할인 누락');
   ok(!opts.includes('1차 조기예매 할인'), '차수 붙은 옛 이름 잔존');
   ok(opts.includes('청소년 할인'), '청소년 할인 누락');
   ok(opts.includes('도서 소지 할인'), '도서 소지 할인 누락');
-  ok(opts.includes('당일 현장 할인'), '당일 현장 할인 누락');
   ok(opts.includes('타임세일'), '타임세일 누락');
   eq(opts[opts.length - 1], '타임세일', '타임세일은 맨 끝');
   ok(!opts.includes('마티네 할인'), '이끼숲에 없는 마티네 할인 잔존');
