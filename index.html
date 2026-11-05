@@ -1781,9 +1781,12 @@ function populateStampSelect(keepBoardId) {
   else if (saved)  sel.value = saved;
 }
 // 더블 적립 위크 — 이 기간 관람은 도장 2개, 더블적립권을 쓰면 3개
-const DOUBLE_STAMP_WEEK = { startDate: '2026-10-20', endDate: '2026-11-01' };
+const DOUBLE_STAMP_WEEKS = [
+  { startDate: '2026-10-20', endDate: '2026-11-01' },
+  { startDate: '2026-11-10', endDate: '2026-11-15' },   // 한 번 더! 더블 적립 위크
+];
 function isDoubleStampWeek(date) {
-  return !!date && date >= DOUBLE_STAMP_WEEK.startDate && date <= DOUBLE_STAMP_WEEK.endDate;
+  return !!date && DOUBLE_STAMP_WEEKS.some(w => date >= w.startDate && date <= w.endDate);
 }
 function baseStampQty(date) { return isDoubleStampWeek(date) ? 2 : 1; }
 function isEditingRecord() { return !!document.getElementById('edit-record-id')?.value; }

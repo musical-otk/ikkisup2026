@@ -364,6 +364,10 @@ t('W. 이벤트 적립', '더블 적립 위크 새 기록은 도장 2개가 기�
   eq(formQty(), '2', '10/22');
   openFormWithBoard('2026-11-03', id);
   eq(formQty(), '1', '기간 밖 11/3');
+  openFormWithBoard('2026-11-12', id);
+  eq(formQty(), '2', '두 번째 기간 11/12');
+  openFormWithBoard('2026-11-16', id);
+  eq(formQty(), '1', '기간 밖 11/16');
   W.closePanel('overlay-record');
 });
 t('W. 이벤트 적립', '기간 중 더블적립권 체크하면 3개, 풀면 2개', () => {
@@ -539,9 +543,9 @@ t('D. 데이터', '스케줄 87회차 로드 (전 회차)', () => {
   eq(s.length, 87);
   ok(s.every(x => g('ROLES').every(r => x[r.key] !== undefined)), '모든 회차에 5배역');
 });
-t('D. 데이터', '이벤트 9건 · X 링크 보유', () => {
+t('D. 데이터', '이벤트 11건 · X 링크 보유', () => {
   const e = W.getEvents();
-  eq(e.length, 9);
+  eq(e.length, 11);
   ok(e.every(x => /^https:\/\/x\.com\//.test(x.url || '')), '모든 이벤트에 X 링크');
 });
 t('D. 데이터', '공연 기간이 2026-10-01 ~ 12-13', () => {
