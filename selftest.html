@@ -544,9 +544,9 @@ t('D. 데이터', '스케줄 87회차 로드 (전 회차)', () => {
   eq(s.length, 87);
   ok(s.every(x => g('ROLES').every(r => x[r.key] !== undefined)), '모든 회차에 5배역');
 });
-t('D. 데이터', '이벤트 12건 · X 링크 보유', () => {
+t('D. 데이터', '이벤트 13건 · X 링크 보유', () => {
   const e = W.getEvents();
-  eq(e.length, 12);
+  eq(e.length, 13);
   ok(e.every(x => /^https:\/\/x\.com\//.test(x.url || '')), '모든 이벤트에 X 링크');
 });
 t('D. 데이터', '공연 기간이 2026-10-01 ~ 12-13', () => {
