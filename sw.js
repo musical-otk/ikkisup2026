@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ikkisup2026-v8';
+const CACHE_NAME = 'ikkisup2026-v10';
 const BASE = '/ikkisup2026';
 
 const PRECACHE_URLS = [
