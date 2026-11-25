@@ -122,6 +122,22 @@
     "url": "https://x.com/_LIVECONNECTION/status/2122902621723763065"
   },
   {
+    "name": "커튼콜 위크",
+    "startDate": "2026-12-01",
+    "endDate": "2026-12-06",
+    "color": "#5CA8FF",
+    "description": "커튼콜 사진·영상 촬영 가능. 좌석 이동 및 삼각대 설치 제한, 연속 촬영·플래시 자제.",
+    "url": "https://x.com/_LIVECONNECTION/status/2125409142550491350"
+  },
+  {
+    "name": "마지막! 더블 적립 위크",
+    "startDate": "2026-12-01",
+    "endDate": "2026-12-06",
+    "color": "#E86A92",
+    "description": "유료 티켓 1매당 재관람 카드 도장 2개 적립. 분할 적립 불가(단 8회차 적립 시에는 새 카드에 이어 적립 가능). 적립은 MD부스 운영 시간 내에만 — 공연 시작 1시간 전~10분 전 / 공연 종료 후 10분.",
+    "url": "https://x.com/_LIVECONNECTION/status/2125409142550491350"
+  },
+  {
     "name": "막공",
     "startDate": "2026-12-12",
     "endDate": "2026-12-13",

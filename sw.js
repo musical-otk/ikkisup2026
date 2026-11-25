@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ikkisup2026-v18';
+const CACHE_NAME = 'ikkisup2026-v19';
 const CACHE_PREFIX = 'ikkisup2026-';   // 같은 origin 의 다른 앱 캐시는 건드리지 않는다
 const NO_CACHE = /[?&]t=\d+/;   // 스케줄·이벤트 json 은 매번 새 주소라 캐시에 쌓지 않는다
 const BASE = '/ikkisup2026';
